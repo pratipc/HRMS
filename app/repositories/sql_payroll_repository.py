@@ -5,13 +5,14 @@ from sqlalchemy import text
 from typing import List, Dict, Any
 from app.repositories.interfaces import IPayrollRepository
 
-class SqlPayrollRepository:
+class SqlPayrollRepository(IPayrollRepository):
     def __init__(self, db_session):
         self.db_session = db_session
 
-    def get_salary_ledger(self):
-        sql = text("SELECT * FROM v_EmployeeSalaryLedger ORDER BY Designation, EmployeeName")
-        return [dict(row) for row in self.db_session.execute(sql).mappings().all()]
+    def generate_monthly_payroll(self, year: int, month: int) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GenerateMonthlyPayroll @Year = :Year, @Month = :Month")
+        result = self.db_session.execute(sql, {"Year": year, "Month": month}).mappings().all()
+        return [dict(row) for row in result]
 
     def update_employee_basic(self, employee_id: int, basic_pay: float):
         sql = text("EXEC sp_UpdateEmployeeBasicPay @EmployeeID = :EmpID, @BasicPay = :BasicPay")

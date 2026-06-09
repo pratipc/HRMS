@@ -13,9 +13,14 @@ class PayrollService:
     def __init__(self, payroll_repo: IPayrollRepository):
         self.payroll_repo = payroll_repo
 
-    def get_salaries(self) -> List[Dict[str, Any]]:
-        """Retrieves the dynamic salary ledger."""
-        return self.payroll_repo.get_salary_ledger()
+    def generate_monthly_payroll(self, year: int, month: int) -> List[Dict[str, Any]]:
+        """Retrieves the dynamic salary ledger including Saturday and Cash allowances."""
+        if not year or not month:
+            from datetime import datetime
+            now = datetime.now()
+            year = now.year
+            month = now.month
+        return self.payroll_repo.generate_monthly_payroll(year, month)
 
     def update_basic_pay(self, employee_id: int, basic_pay: float) -> None:
         """Validates bounds and updates an employee's basic pay."""

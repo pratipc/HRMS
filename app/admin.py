@@ -565,7 +565,9 @@ def payroll_master_page():
 @admin_bp.route('/api/payroll/salaries', methods=['GET'])
 @role_required('Admin')
 def get_salaries():
-    return jsonify(PayrollService(SqlPayrollRepository(db.session)).get_salaries()), 200
+    year = request.args.get('year', default=datetime.datetime.now().year, type=int)
+    month = request.args.get('month', default=datetime.datetime.now().month, type=int)
+    return jsonify(PayrollService(SqlPayrollRepository(db.session)).generate_monthly_payroll(year, month)), 200
 
 @admin_bp.route('/api/payroll/employee/<int:emp_id>/basic', methods=['PUT'])
 @role_required('Admin')

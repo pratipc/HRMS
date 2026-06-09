@@ -156,8 +156,8 @@ class ITimeActionRepository(ABC):
 class IPayrollRepository(ABC):
     """Handles Payroll calculations, scales, and global allowance parameters."""
     @abstractmethod
-    def get_salary_ledger(self) -> List[Dict[str, Any]]: 
-        """Returns the real-time dynamic salary ledger for all active employees."""
+    def generate_monthly_payroll(self, year: int, month: int) -> List[Dict[str, Any]]: 
+        """Generates the comprehensive monthly salary ledger including dynamic allowances."""
         pass
         
     @abstractmethod
