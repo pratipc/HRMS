@@ -1,0 +1,14 @@
+# Python Virtual Environments
+venv/
+env/
+ENV/
+.env/
+
+# Python caching and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment configuration variables (keeps API keys secure)
+.env
