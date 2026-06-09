@@ -1,0 +1,711 @@
+<!-- File Name: holiday_master.html -->
+<!-- Location: kpcb_hrms/app/templates/admin/holiday_master.html -->
+{% extends "layouts/admin_base.html" %}
+
+{% block header_title %}Calendar Configuration Master{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+    <!-- Main Header Section with Tab Navigation -->
+    <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">Bank Holidays & Weekends</h2>
+            <p class="text-sm text-slate-500">Configure global non-working days used dynamically in leave mathematics.</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <!-- Navigation Tabs -->
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto">
+                <button onclick="setTab('holidays')" id="tabBtnHolidays" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-calendar-star"></i> Bank Holidays
+                </button>
+                <button onclick="setTab('weekends')" id="tabBtnWeekends" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
+                    <i class="ph-bold ph-calendar-x"></i> Weekend Rules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: BANK HOLIDAYS                       -->
+    <!-- ========================================== -->
+    <div id="tabContentHolidays" class="flex flex-col space-y-6">
+        
+        <!-- Holiday Action Bar -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <!-- Sub-View Toggle (Calendar vs Table) -->
+                <button onclick="setView('calendar')" id="btnViewCalendar" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-calendar-blank"></i> Calendar
+                </button>
+                <button onclick="setView('table')" id="btnViewTable" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-list-dashes"></i> Table
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <!-- Year Selector -->
+                <div class="relative">
+                    <select id="yearSelector" class="appearance-none bg-white border border-slate-200 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-sm">
+                        {% for y in range(current_year - 5, current_year + 6) %}
+                            <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                        <i class="ph-bold ph-caret-down"></i>
+                    </div>
+                </div>
+
+                <button onclick="openBulkModal()" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/30 whitespace-nowrap">
+                    <i class="ph-bold ph-file-arrow-up"></i> Bulk Upload
+                </button>
+
+                <button onclick="openAddModal()" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 whitespace-nowrap">
+                    <i class="ph-bold ph-calendar-plus"></i> Add Holiday
+                </button>
+            </div>
+        </div>
+
+        <!-- Holiday Data Container -->
+        <div id="dataContainer" class="w-full relative min-h-[400px]">
+            <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 z-10 glass-panel rounded-2xl border border-slate-200">
+                <i class="ph-bold ph-spinner animate-spin text-4xl mb-3 text-indigo-500"></i>
+                <p class="font-medium">Loading calendar...</p>
+            </div>
+
+            <!-- Calendar View (Cards) -->
+            <div id="calendarView" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+
+            <!-- Table View -->
+            <div id="tableView" class="hidden glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-white/40 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                <th class="px-6 py-4 font-semibold">Date</th>
+                                <th class="px-6 py-4 font-semibold">Day of Week</th>
+                                <th class="px-6 py-4 font-semibold">Holiday Name</th>
+                                <th class="px-6 py-4 font-semibold">Category</th>
+                                <th class="px-6 py-4 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="holidayTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="emptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-500 z-10 glass-panel rounded-2xl border border-slate-200 p-8 text-center">
+                <div class="h-20 w-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="ph-duotone ph-calendar-x text-4xl text-slate-400"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-1">No Holidays Found</h3>
+                <p class="text-sm">There are no holidays registered for this calendar year yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: WEEKEND RULES                       -->
+    <!-- ========================================== -->
+    <div id="tabContentWeekends" class="hidden flex flex-col items-center">
+        <div class="glass-panel p-8 rounded-2xl border border-slate-200 bg-white/70 w-full max-w-2xl shadow-sm">
+            
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+                <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-rose-500 to-orange-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
+                    <i class="ph-fill ph-calendar-x text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg">Weekly Off Matrix</h3>
+                    <p class="text-xs font-semibold text-slate-500">Changes here instantly recalculate "Net Days" for all future leave applications.</p>
+                </div>
+            </div>
+
+            <!-- Sundays Config -->
+            <div class="mb-8">
+                <label class="flex items-center justify-between p-4 rounded-xl border border-indigo-100 bg-indigo-50/50 cursor-pointer hover:bg-indigo-50 transition-colors">
+                    <div>
+                        <span class="block text-sm font-bold text-indigo-900">All Sundays</span>
+                        <span class="block text-xs text-indigo-700 mt-0.5">Every Sunday is automatically treated as a non-working day.</span>
+                    </div>
+                    <div class="relative flex items-center">
+                        <input type="checkbox" id="chkAllSundays" class="peer h-6 w-6 cursor-pointer appearance-none rounded-md border border-indigo-300 checked:border-indigo-600 checked:bg-indigo-600 transition-all">
+                        <i class="ph-bold ph-check absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 pointer-events-none text-sm"></i>
+                    </div>
+                </label>
+            </div>
+
+            <!-- Saturdays Config -->
+            <div>
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Saturday Rules Configuration</h4>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="saturdayGrid">
+                    <!-- Checkboxes mapped to WeekOfMonth 1-5 -->
+                    <label class="flex items-center gap-3 p-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="checkbox" id="chkSat1" value="1" class="sat-chk h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">1st Saturday</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="checkbox" id="chkSat2" value="2" class="sat-chk h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">2nd Saturday</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="checkbox" id="chkSat3" value="3" class="sat-chk h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">3rd Saturday</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="checkbox" id="chkSat4" value="4" class="sat-chk h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">4th Saturday</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-slate-200 bg-white rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                        <input type="checkbox" id="chkSat5" value="5" class="sat-chk h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                        <span class="text-sm font-semibold text-slate-700">5th Saturday</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-5 border-t border-slate-100 flex justify-end">
+                <button onclick="saveWeekendConfig()" id="btnSaveWeekends" class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-colors shadow-indigo-500/20">
+                    <i class="ph-bold ph-floppy-disk"></i> Save Weekend Rules
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODALS (Rendered outside tab flow)         -->
+<!-- ========================================== -->
+
+<!-- Add Holiday Modal -->
+<div id="addHolidayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-calendar-check text-indigo-600"></i> Register New Holiday
+            </h3>
+            <button onclick="closeAddModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="addHolidayForm" class="p-6">
+            <div id="addFormError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Date <span class="text-red-500">*</span></label>
+                    <input type="date" id="addHolidayDate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Title/Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="addHolidayName" required placeholder="e.g., Republic Day" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Category</label>
+                    <select id="addHolidayType" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="Public Holiday">General / Public Holiday</option>
+                        <option value="National">National Holiday</option>
+                        <option value="State">State/Regional Holiday</option>
+                        <option value="Bank Closure">Bank Closure</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeAddModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="addSubmitBtn" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-md">Save Holiday</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Holiday Modal -->
+<div id="editHolidayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-pencil-simple text-amber-500"></i> Edit Holiday
+            </h3>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="editHolidayForm" class="p-6">
+            <input type="hidden" id="editHolidayId">
+            <div id="editFormError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Date <span class="text-red-500">*</span></label>
+                    <input type="date" id="editHolidayDate" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Title/Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="editHolidayName" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Holiday Category</label>
+                    <select id="editHolidayType" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                        <option value="Public Holiday">General / Public Holiday</option>
+                        <option value="National">National Holiday</option>
+                        <option value="State">State/Regional Holiday</option>
+                        <option value="Bank Closure">Bank Closure</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="editSubmitBtn" class="px-5 py-2.5 bg-amber-500 text-white text-sm font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md">Update Holiday</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div id="bulkUploadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-file-arrow-up text-emerald-600"></i> Bulk Upload Holidays
+            </h3>
+            <button onclick="closeBulkModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="bulkUploadForm" class="p-6">
+            <div id="bulkFormError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            <div id="bulkFormSuccess" class="hidden mb-4 p-3 bg-emerald-50 text-emerald-600 text-sm rounded-lg border border-emerald-100"></div>
+            <div class="space-y-4 mb-6">
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-700">Download Template</p>
+                        <p class="text-xs text-slate-500">Format: YYYY-MM-DD, Name, Category</p>
+                    </div>
+                    <a href="/admin/api/holidays/template" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm flex items-center gap-1 transition-colors">
+                        <i class="ph-bold ph-download-simple"></i> .CSV
+                    </a>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Select CSV File <span class="text-red-500">*</span></label>
+                    <input type="file" id="csvFile" accept=".csv" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeBulkModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="submitBulkBtn" class="px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md">Upload & Process</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- SCRIPTS                                    -->
+<!-- ========================================== -->
+<script>
+    let currentViewMode = 'calendar'; 
+    let holidaysData = [];
+    const yearSelector = document.getElementById('yearSelector');
+    
+    // INITIALIZATION
+    document.addEventListener("DOMContentLoaded", () => {
+        loadHolidays(yearSelector.value);
+        loadWeekendConfig();
+    });
+
+    yearSelector.addEventListener('change', (e) => {
+        loadHolidays(e.target.value);
+    });
+
+    // --- MAIN TAB LOGIC ---
+    function setTab(tab) {
+        const tabHolidays = document.getElementById('tabContentHolidays');
+        const tabWeekends = document.getElementById('tabContentWeekends');
+        const btnHolidays = document.getElementById('tabBtnHolidays');
+        const btnWeekends = document.getElementById('tabBtnWeekends');
+
+        if(tab === 'holidays') {
+            tabHolidays.classList.remove('hidden'); tabWeekends.classList.add('hidden');
+            btnHolidays.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            btnWeekends.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        } else {
+            tabHolidays.classList.add('hidden'); tabWeekends.classList.remove('hidden');
+            btnWeekends.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            btnHolidays.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        }
+    }
+
+    // --- HOLIDAY SUB-VIEW LOGIC ---
+    function setView(mode) {
+        currentViewMode = mode;
+        const btnCal = document.getElementById('btnViewCalendar');
+        const btnTab = document.getElementById('btnViewTable');
+        
+        if (mode === 'calendar') {
+            btnCal.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-2";
+            btnTab.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center gap-2";
+        } else {
+            btnTab.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center gap-2";
+            btnCal.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center gap-2";
+        }
+        renderData();
+    }
+
+    // --- HOLIDAY DATA LOGIC ---
+    async function loadHolidays(year) {
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('calendarView').classList.add('hidden');
+        document.getElementById('tableView').classList.add('hidden');
+        document.getElementById('emptyState').classList.add('hidden');
+        
+        try {
+            const res = await fetch(`/admin/api/holidays/${year}`);
+            holidaysData = await res.json();
+            renderData();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function renderData() {
+        const calView = document.getElementById('calendarView');
+        const tabView = document.getElementById('tableView');
+        const emptyView = document.getElementById('emptyState');
+        const tBody = document.getElementById('holidayTableBody');
+        
+        if (holidaysData.length === 0) {
+            calView.classList.add('hidden');
+            tabView.classList.add('hidden');
+            emptyView.classList.remove('hidden');
+            return;
+        }
+
+        emptyView.classList.add('hidden');
+
+        if (currentViewMode === 'calendar') {
+            tabView.classList.add('hidden');
+            calView.classList.remove('hidden');
+            
+            calView.innerHTML = holidaysData.map(holiday => {
+                const dateObj = new Date(holiday.HolidayDate);
+                const day = dateObj.getDate();
+                const monthName = dateObj.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+                const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const d = String(dateObj.getDate()).padStart(2, '0');
+                const ymdDate = `${y}-${m}-${d}`;
+                
+                const safeType = holiday.HolidayType || 'Public Holiday';
+                
+                let topBannerColor = "bg-slate-600"; 
+                let typeIcon = "ph-bank";
+                if (safeType === 'National') { topBannerColor = "bg-rose-500"; typeIcon = "ph-flag"; }
+                if (safeType === 'State') { topBannerColor = "bg-amber-500"; typeIcon = "ph-map-pin"; }
+
+                return `
+                <div class="glass-panel bg-white/70 hover:bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-all group flex items-center p-4 gap-4 relative">
+                    <button onclick="openEditModal(${holiday.HolidayID}, '${ymdDate}', '${escapeHtml(holiday.HolidayName)}', '${safeType}')" 
+                            class="absolute top-2 right-2 p-1.5 rounded-md bg-white text-slate-400 border border-slate-100 hover:text-amber-500 hover:border-amber-200 shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10" title="Edit Holiday">
+                        <i class="ph-bold ph-pencil-simple text-sm"></i>
+                    </button>
+                    
+                    <div class="flex-shrink-0 w-16 h-16 flex flex-col justify-center items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                        <div class="w-full ${topBannerColor} text-white text-[10px] font-bold uppercase tracking-wider text-center py-0.5">${monthName}</div>
+                        <div class="flex-1 flex items-center justify-center text-2xl font-black text-slate-800 leading-none">${day}</div>
+                    </div>
+                    <div class="flex-1 min-w-0 pr-6">
+                        <h4 class="font-bold text-slate-800 text-base truncate" title="${escapeHtml(holiday.HolidayName)}">${escapeHtml(holiday.HolidayName)}</h4>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-xs font-semibold text-slate-500">${dayOfWeek}</span>
+                            <span class="text-slate-300">•</span>
+                            <span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${safeType === 'National' ? 'text-rose-600' : safeType === 'State' ? 'text-amber-600' : 'text-slate-600'}">
+                                <i class="ph-fill ${typeIcon}"></i> ${safeType}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+            
+        } else {
+            calView.classList.add('hidden');
+            tabView.classList.remove('hidden');
+            
+            tBody.innerHTML = holidaysData.map(holiday => {
+                const dateObj = new Date(holiday.HolidayDate);
+                const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const d = String(dateObj.getDate()).padStart(2, '0');
+                const ymdDate = `${y}-${m}-${d}`;
+                
+                const safeType = holiday.HolidayType || 'Public Holiday';
+                
+                let badgeClass = "bg-slate-100 text-slate-800 border-slate-200";
+                if (safeType === 'National') badgeClass = "bg-rose-50 text-rose-700 border-rose-200";
+                if (safeType === 'State') badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+                if (safeType === 'Bank Closure') badgeClass = "bg-slate-50 text-slate-700 border-slate-200";
+                
+                return `
+                <tr class="hover:bg-white/60 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">${formattedDate}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">${dayOfWeek}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-indigo-600">${escapeHtml(holiday.HolidayName)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2.5 py-1 rounded-md text-xs font-bold border ${badgeClass}">${safeType}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <button onclick="openEditModal(${holiday.HolidayID}, '${ymdDate}', '${escapeHtml(holiday.HolidayName)}', '${safeType}')" 
+                                class="text-slate-400 hover:text-amber-500 transition-colors bg-white border border-slate-200 rounded p-1.5 shadow-sm">
+                            <i class="ph-bold ph-pencil-simple"></i>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+    }
+
+    // --- HOLIDAY MODALS ---
+    const addModal = document.getElementById('addHolidayModal');
+    function openAddModal() { addModal.classList.remove('hidden'); addModal.classList.add('flex'); }
+    function closeAddModal() { 
+        addModal.classList.add('hidden'); addModal.classList.remove('flex'); 
+        document.getElementById('addHolidayForm').reset();
+        document.getElementById('addFormError').classList.add('hidden');
+    }
+
+    document.getElementById('addHolidayForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('addSubmitBtn');
+        const errorBox = document.getElementById('addFormError');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving...';
+        errorBox.classList.add('hidden');
+
+        const payload = {
+            HolidayDate: document.getElementById('addHolidayDate').value,
+            HolidayName: document.getElementById('addHolidayName').value,
+            HolidayType: document.getElementById('addHolidayType').value
+        };
+
+        try {
+            const res = await fetch('/admin/api/holidays', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeAddModal();
+                const addedYear = payload.HolidayDate.split('-')[0];
+                yearSelector.value = addedYear; 
+                loadHolidays(addedYear); 
+            } else {
+                errorBox.textContent = data.error || 'Failed to add holiday.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Save Holiday';
+        }
+    });
+
+    const editModal = document.getElementById('editHolidayModal');
+    function openEditModal(id, date, name, type) { 
+        document.getElementById('editHolidayId').value = id;
+        document.getElementById('editHolidayDate').value = date;
+        document.getElementById('editHolidayName').value = name;
+        
+        const typeSelect = document.getElementById('editHolidayType');
+        let typeExists = Array.from(typeSelect.options).some(opt => opt.value === type);
+        typeSelect.value = typeExists ? type : 'Public Holiday';
+        
+        editModal.classList.remove('hidden'); editModal.classList.add('flex'); 
+    }
+    function closeEditModal() { 
+        editModal.classList.add('hidden'); editModal.classList.remove('flex'); 
+        document.getElementById('editHolidayForm').reset();
+        document.getElementById('editFormError').classList.add('hidden');
+    }
+
+    document.getElementById('editHolidayForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('editSubmitBtn');
+        const errorBox = document.getElementById('editFormError');
+        const holidayId = document.getElementById('editHolidayId').value;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Updating...';
+        errorBox.classList.add('hidden');
+
+        const payload = {
+            HolidayDate: document.getElementById('editHolidayDate').value,
+            HolidayName: document.getElementById('editHolidayName').value,
+            HolidayType: document.getElementById('editHolidayType').value
+        };
+
+        try {
+            const res = await fetch(`/admin/api/holidays/${holidayId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeEditModal();
+                const targetYear = payload.HolidayDate.split('-')[0];
+                yearSelector.value = targetYear; 
+                loadHolidays(targetYear); 
+            } else {
+                errorBox.textContent = data.error || 'Failed to update holiday.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Update Holiday';
+        }
+    });
+
+    const bulkModal = document.getElementById('bulkUploadModal');
+    function openBulkModal() { bulkModal.classList.remove('hidden'); bulkModal.classList.add('flex'); }
+    function closeBulkModal() { 
+        bulkModal.classList.add('hidden'); bulkModal.classList.remove('flex'); 
+        document.getElementById('bulkUploadForm').reset();
+        document.getElementById('bulkFormError').classList.add('hidden');
+        document.getElementById('bulkFormSuccess').classList.add('hidden');
+    }
+
+    document.getElementById('bulkUploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBulkBtn = document.getElementById('submitBulkBtn');
+        const errorBox = document.getElementById('bulkFormError');
+        const successBox = document.getElementById('bulkFormSuccess');
+        const fileInput = document.getElementById('csvFile');
+        
+        submitBulkBtn.disabled = true;
+        submitBulkBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Processing...';
+        errorBox.classList.add('hidden');
+        successBox.classList.add('hidden');
+
+        if (!fileInput.files[0]) {
+            errorBox.textContent = 'Please select a file to upload.';
+            errorBox.classList.remove('hidden');
+            submitBulkBtn.disabled = false;
+            submitBulkBtn.innerHTML = 'Upload & Process';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const res = await fetch('/admin/api/holidays/bulk-upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                successBox.textContent = data.message;
+                successBox.classList.remove('hidden');
+                setTimeout(() => {
+                    closeBulkModal();
+                    loadHolidays(yearSelector.value); 
+                }, 2000);
+            } else if (res.status === 207) {
+                errorBox.innerHTML = `<strong>${data.message}</strong><br>Some rows failed: <ul class="list-disc pl-4 mt-1 text-xs">${data.details.map(err => `<li>${err}</li>`).join('')}</ul>`;
+                errorBox.classList.remove('hidden');
+                loadHolidays(yearSelector.value); 
+            } else {
+                let errorHtml = data.error || 'Upload failed.';
+                if (data.details && data.details.length > 0) {
+                     errorHtml += `<ul class="list-disc pl-4 mt-1 text-xs">${data.details.map(err => `<li>${err}</li>`).join('')}</ul>`;
+                }
+                errorBox.innerHTML = errorHtml;
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBulkBtn.disabled = false;
+            submitBulkBtn.innerHTML = 'Upload & Process';
+        }
+    });
+
+    // --- WEEKEND CONFIG LOGIC ---
+    async function loadWeekendConfig() {
+        try {
+            const res = await fetch('/admin/api/weekly-offs');
+            const data = await res.json();
+            
+            document.getElementById('chkAllSundays').checked = false;
+            document.querySelectorAll('.sat-chk').forEach(chk => chk.checked = false);
+
+            if (res.ok) {
+                data.forEach(rule => {
+                    if (rule.DayOfWeek === 0 && rule.WeekOfMonth === 0) {
+                        document.getElementById('chkAllSundays').checked = true;
+                    }
+                    else if (rule.DayOfWeek === 6 && rule.WeekOfMonth > 0) {
+                        const satChk = document.getElementById(`chkSat${rule.WeekOfMonth}`);
+                        if (satChk) satChk.checked = true;
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load weekend configurations", err);
+        }
+    }
+
+    async function saveWeekendConfig() {
+        const btn = document.getElementById('btnSaveWeekends');
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i> Saving...`;
+
+        const payload = [];
+
+        if (document.getElementById('chkAllSundays').checked) {
+            payload.push({ DayOfWeek: 0, WeekOfMonth: 0 });
+        }
+
+        document.querySelectorAll('.sat-chk').forEach(chk => {
+            if (chk.checked) {
+                payload.push({ DayOfWeek: 6, WeekOfMonth: parseInt(chk.value) });
+            }
+        });
+
+        try {
+            const res = await fetch('/admin/api/weekly-offs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                alert(data.message);
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (err) {
+            alert('Server connection failed.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    }
+</script>
+{% endblock %}

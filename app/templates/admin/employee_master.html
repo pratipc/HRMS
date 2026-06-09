@@ -1,0 +1,860 @@
+<!-- File Name: employee_master.html -->
+<!-- Location: kpcb_hrms/app/templates/admin/employee_master.html -->
+{% extends "layouts/admin_base.html" %}
+
+{% block header_title %}Employee Directory{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">Master Directory</h2>
+            <p class="text-sm text-slate-500">View and manage all active bank employees and their lifecycle data.</p>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full lg:w-auto">
+            <!-- Branch Filter -->
+            <div class="relative flex-1 lg:w-48">
+                <i class="ph-bold ph-buildings absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <select id="branchFilter" onchange="loadEmployees()" class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm bg-white appearance-none cursor-pointer">
+                    <option value="">All Branches</option>
+                    <!-- Branches populated dynamically -->
+                </select>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative flex-1 lg:w-64">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" placeholder="Search employees..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm">
+            </div>
+
+            <!-- Bulk Upload Button -->
+            <button onclick="openBulkModal()" class="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/30 whitespace-nowrap">
+                <i class="ph-bold ph-file-arrow-up"></i> Bulk Upload
+            </button>
+
+            <!-- Add Button -->
+            <button onclick="openAddModal()" class="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 whitespace-nowrap">
+                <i class="ph-bold ph-user-plus"></i> Onboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white relative min-h-[400px]">
+        <!-- Loading State -->
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
+            <i class="ph-bold ph-spinner animate-spin text-4xl mb-3 text-indigo-500"></i>
+            <p class="font-medium text-slate-500">Loading directory...</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        <th class="px-6 py-4 font-semibold">Emp Code</th>
+                        <th class="px-6 py-4 font-semibold">Employee Details</th>
+                        <th class="px-6 py-4 font-semibold">Department</th>
+                        <th class="px-6 py-4 font-semibold">Designation</th>
+                        <th class="px-6 py-4 font-semibold">Experience</th>
+                        <th class="px-6 py-4 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                            <i class="ph-bold ph-spinner animate-spin text-2xl mb-2"></i>
+                            <p>Loading directory...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Profile Modal (Frosted Glassmorphism Overlay) -->
+<div id="viewEmployeeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white/95 border border-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform scale-100 transition-transform">
+        <!-- Banner/Header -->
+        <div class="px-8 py-6 bg-gradient-to-tr from-indigo-600 to-blue-500 text-white relative">
+            <button onclick="closeViewModal()" class="absolute top-4 right-4 h-8 w-8 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center text-white transition-colors">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+            <div class="flex items-center gap-4">
+                <div id="viewAvatar" class="h-14 w-14 rounded-full bg-white/20 flex items-center justify-center font-bold text-2xl border border-white/30 text-white shadow-inner">
+                    <!-- Initial -->
+                </div>
+                <div>
+                    <h3 id="viewFullName" class="text-xl font-bold tracking-tight"><!-- Name --></h3>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="viewEmpCode" class="px-2 py-0.5 rounded bg-white/20 text-[10px] font-mono font-bold tracking-wider"><!-- Code --></span>
+                        <span class="text-white/40">•</span>
+                        <span id="viewDesignation" class="text-xs font-semibold text-indigo-100"><!-- Designation --></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-8 space-y-6 max-h-[60vh] overflow-y-auto">
+            <!-- Section 1: Contact Details -->
+            <div>
+                <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">1. Contact & Corporate Placement</h4>
+                <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Department</span>
+                        <span id="viewDepartment" class="font-semibold text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Joined On</span>
+                        <span id="viewDoj" class="font-semibold text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Official Email</span>
+                        <span id="viewEmail" class="font-semibold text-indigo-600">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Phone Number</span>
+                        <span id="viewPhone" class="font-semibold text-slate-700">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: KYC Identity & Banking -->
+            <div class="border-t border-slate-100 pt-5">
+                <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">2. KYC & Salary Bank Identity</h4>
+                <div class="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">PAN Card Number</span>
+                        <span id="viewPAN" class="font-mono font-bold text-slate-700 uppercase">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Aadhar Identity Number</span>
+                        <span id="viewAadhar" class="font-mono font-bold text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Bank Account Number</span>
+                        <span id="viewBankAccount" class="font-mono font-bold text-slate-700">-</span>
+                    </div>
+                    <div>
+                        <span class="block text-slate-400 text-xs font-medium">Bank IFSC Code</span>
+                        <span id="viewIFSC" class="font-mono font-bold text-slate-700 uppercase">-</span>
+                    </div>
+                    <div class="col-span-2">
+                        <span class="block text-slate-400 text-xs font-medium">Active Assigned Branch</span>
+                        <span id="viewBranch" class="font-semibold text-slate-700">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: Compensation -->
+            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 mt-2">
+                 <h4 class="text-[10px] font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1"><i class="ph-bold ph-money"></i> Base Compensation</h4>
+                 <div>
+                        <p class="text-xs font-semibold text-emerald-700">Basic Monthly Pay</p>
+                        <p class="text-lg font-black text-emerald-900" id="vpBasicPay">₹0.00</p>
+                 </div>
+            </div>
+        </div>
+
+        <div class="px-8 py-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <button onclick="closeViewModal()" class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold rounded-xl transition-colors">Close Profile</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employee Modal (Fully Segmented Layout to Resolve All Overlaps) -->
+<div id="addEmployeeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+        <!-- 1. Fixed Header Area -->
+        <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-user-plus text-indigo-600"></i> New Employee Registration
+            </h3>
+            <button onclick="closeAddModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        
+        <!-- Form housing the structural container -->
+        <form id="addEmployeeForm" class="flex flex-col flex-1 overflow-hidden">
+            <!-- 2. Independent Scrollable Form Body -->
+            <div class="overflow-y-auto p-8 space-y-6 flex-1">
+                <div id="formError" class="hidden p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+                
+                <!-- Section 1: Personal Profile -->
+                <div>
+                    <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">1. Personal Profile</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="firstName" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="lastName" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Official Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="email" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
+                            <input type="tel" id="phone" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="+91">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Corporate Placement -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">2. Corporate Placement</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Department</label>
+                            <input type="text" id="department" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="e.g. Accounts">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Designation <span class="text-red-500">*</span></label>
+                            <select id="designation" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                                <option value="">-- Select Designation --</option>
+                                <option value="Senior Manager">Senior Manager</option>
+                                <option value="Senior Manager 1">Senior Manager 1</option>
+                                <option value="Senior Manager 2">Senior Manager 2</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Sub Accountant">Sub Accountant</option>
+                                <option value="Upper Division Assistant (UDA)">Upper Division Assistant (UDA)</option>
+                                <option value="Lower Division Assistant (LDA)">Lower Division Assistant (LDA)</option>
+                                <option value="Group D">Group D</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Assigned Branch <span class="text-red-500">*</span></label>
+                            <select id="branchID" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                                <option value="">-- Select Branch --</option>
+                                <!-- Branches populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Date of Joining <span class="text-red-500">*</span></label>
+                            <input type="date" id="doj" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: KYC Identity & Salary Bank Details -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">3. KYC Identity & Salary Bank Details</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">PAN Card Number</label>
+                            <input type="text" id="pan" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm uppercase" placeholder="ABCDE1234F" maxlength="10">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Aadhar Identity Number</label>
+                            <input type="text" id="aadhar" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="12-digit number" maxlength="12">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Bank Account Number</label>
+                            <input type="text" id="accountNo" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Enter Account No">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Bank IFSC Code</label>
+                            <input type="text" id="ifsc" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm uppercase" placeholder="IFSC Code" maxlength="11">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Section 4: Compensation -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">4. Compensation</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Basic Monthly Pay (₹)</label>
+                            <input type="number" step="0.01" id="addBasicPay" placeholder="0.00" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-semibold bg-emerald-50">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Rigid, Solid Fixed Footer (Fully Outside the scroll container boundaries) -->
+            <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeAddModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" id="submitBtn" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+                    Complete Registration
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Employee Modal (Robust, Symmetric, Fixed Boundary Layout) -->
+<div id="editEmployeeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+        <!-- 1. Fixed Header Area -->
+        <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-pencil-simple text-amber-500"></i> Modify Employee Profile
+            </h3>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        
+        <!-- Form housing the structural container -->
+        <form id="editEmployeeForm" class="flex flex-col flex-1 overflow-hidden">
+            <input type="hidden" id="editEmployeeId">
+            
+            <!-- 2. Independent Scrollable Form Body -->
+            <div class="overflow-y-auto p-8 space-y-6 flex-1">
+                <div id="editFormError" class="hidden p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+                
+                <!-- Section 1: Personal Profile -->
+                <div>
+                    <h4 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-3">1. Personal Profile</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">First Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="editFirstName" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Last Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="editLastName" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Official Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="editEmail" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Phone Number</label>
+                            <input type="tel" id="editPhone" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm" placeholder="+91">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Corporate Placement -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-3">2. Corporate Placement</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Department</label>
+                            <input type="text" id="editDepartment" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm" placeholder="e.g. Accounts">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Designation <span class="text-red-500">*</span></label>
+                            <select id="editDesignation" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm bg-white">
+                                <option value="">-- Select Designation --</option>
+                                <option value="Senior Manager">Senior Manager</option>
+                                <option value="Senior Manager 1">Senior Manager 1</option>
+                                <option value="Senior Manager 2">Senior Manager 2</option>
+                                <option value="Manager">Manager</option>
+                                <option value="Sub Accountant">Sub Accountant</option>
+                                <option value="Upper Division Assistant (UDA)">Upper Division Assistant (UDA)</option>
+                                <option value="Lower Division Assistant (LDA)">Lower Division Assistant (LDA)</option>
+                                <option value="Group D">Group D</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Assigned Branch <span class="text-red-500">*</span></label>
+                            <select id="editBranchID" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm bg-white">
+                                <option value="">-- Select Branch --</option>
+                                <!-- Branches populated dynamically -->
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Date of Joining <span class="text-red-500">*</span></label>
+                            <input type="date" id="editDoj" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: KYC Identity & Salary Bank Details -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-3">3. KYC Identity & Salary Bank Details</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">PAN Card Number</label>
+                            <input type="text" id="editPAN" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm uppercase" placeholder="ABCDE1234F" maxlength="10">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Aadhar Identity Number</label>
+                            <input type="text" id="editAadhar" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm" placeholder="12-digit number" maxlength="12">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Bank Account Number</label>
+                            <input type="text" id="editBankAccount" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm" placeholder="Enter Account No">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Bank IFSC Code</label>
+                            <input type="text" id="editIFSC" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm uppercase" placeholder="IFSC Code" maxlength="11">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Compensation -->
+                <div class="border-t border-slate-100 pt-5">
+                    <h4 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">4. Compensation</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Basic Monthly Pay (₹)</label>
+                            <input type="number" step="0.01" id="editBasicPay" placeholder="0.00" class="w-full px-4 py-2 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-amber-500 text-sm font-semibold bg-emerald-50">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Rigid, Solid Fixed Footer (Fully Outside the scroll container boundaries) -->
+            <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" id="editSubmitBtn" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20">
+                    Update Profile
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div id="bulkUploadModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-file-arrow-up text-emerald-600"></i> Bulk Upload Employees
+            </h3>
+            <button onclick="closeBulkModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="bulkUploadForm" class="p-6">
+            <div id="bulkFormError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            <div id="bulkFormSuccess" class="hidden mb-4 p-3 bg-emerald-50 text-emerald-600 text-sm rounded-lg border border-emerald-100"></div>
+            <div class="space-y-4 mb-6">
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-700">Download Template</p>
+                        <p class="text-xs text-slate-500">Standard formatting required.</p>
+                    </div>
+                    <a href="/admin/api/employees/template" class="text-indigo-600 hover:text-indigo-800 font-bold text-sm flex items-center gap-1 transition-colors">
+                        <i class="ph-bold ph-download-simple"></i> .CSV
+                    </a>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Select CSV File <span class="text-red-500">*</span></label>
+                    <input type="file" id="csvFile" accept=".csv" required class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeBulkModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="submitBulkBtn" class="px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md">Upload & Process</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let globalEmployeeData = []; // Store data for client-side search filtering
+    let globalBranchData = []; // Store branches for dropdowns
+    const formatINR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+
+    // --- Dynamic Lifecycle Tracking: Experience Calculation Logic ---
+    function calculateExperience(joinDateStr) {
+        if (!joinDateStr) return '-';
+        const joinDate = new Date(joinDateStr);
+        const today = new Date();
+        
+        let years = today.getFullYear() - joinDate.getFullYear();
+        let months = today.getMonth() - joinDate.getMonth();
+        
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+        
+        if (years < 0) return '0 Mos';
+        
+        let exp = '';
+        if (years > 0) exp += `${years} Yr${years > 1 ? 's' : ''}`;
+        if (months > 0) exp += ` ${months} Mo${months > 1 ? 's' : ''}`;
+        
+        return exp.trim() || '0 Mos';
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadBranches();
+        loadEmployees();
+    });
+
+    async function loadBranches() {
+        try {
+            const res = await fetch('/admin/api/branches');
+            globalBranchData = await res.json();
+            
+            // Populate Branch Filter
+            const filter = document.getElementById('branchFilter');
+            globalBranchData.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.textContent = b.BranchName;
+                filter.appendChild(opt);
+            });
+            
+            // Populate Add Modal Dropdown
+            const addSelect = document.getElementById('branchID');
+            globalBranchData.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.textContent = b.BranchName;
+                addSelect.appendChild(opt);
+            });
+
+            // Populate Edit Modal Dropdown
+            const editSelect = document.getElementById('editBranchID');
+            globalBranchData.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.textContent = b.BranchName;
+                editSelect.appendChild(opt);
+            });
+        } catch (err) {
+            console.error("Error loading branches:", err);
+        }
+    }
+
+    // --- Search Filter Logic ---
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const filteredData = globalEmployeeData.filter(emp => {
+            const fullName = `${emp.FirstName} ${emp.LastName}`.toLowerCase();
+            return fullName.includes(searchTerm) || 
+                   (emp.EmployeeCode || '').toLowerCase().includes(searchTerm) ||
+                   (emp.Designation || '').toLowerCase().includes(searchTerm) ||
+                   (emp.Department || '').toLowerCase().includes(searchTerm);
+        });
+        renderTable(filteredData);
+    });
+
+    async function loadEmployees() {
+        document.getElementById('loadingState').classList.remove('hidden');
+        const branchId = document.getElementById('branchFilter').value;
+        const url = branchId ? `/admin/api/employees?branch_id=${branchId}` : '/admin/api/employees';
+        
+        try {
+            const res = await fetch(url);
+            globalEmployeeData = await res.json();
+            renderTable(globalEmployeeData);
+        } catch (err) {
+            document.getElementById('employeeTableBody').innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500">Error loading data.</td></tr>`;
+        } finally {
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('employeeTableBody');
+        if(!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No employees found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(emp => `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        ${emp.EmployeeCode}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                        <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-indigo-100 to-blue-50 flex items-center justify-center text-indigo-700 font-bold mr-3 border border-indigo-200 shadow-sm shrink-0">
+                            ${emp.FirstName[0].toUpperCase()}
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-bold text-slate-800 truncate">${emp.FirstName} ${emp.LastName}</span>
+                                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 rounded uppercase tracking-tighter">${emp.BranchName || 'N/A'}</span>
+                            </div>
+                            <span class="text-xs text-slate-500 font-medium truncate">${emp.Email}</span>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">${emp.Department || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">${emp.Designation || '-'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
+                    ${calculateExperience(emp.DateOfJoin)}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex items-center justify-end gap-2">
+                    <button onclick="viewEmployeeDetails(${emp.EmployeeID})" class="text-indigo-600 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors inline-flex items-center gap-1.5 shadow-sm" title="View Profile">
+                        <i class="ph-bold ph-identification-badge"></i> View
+                    </button>
+                    <button onclick="openEditModal(${emp.EmployeeID})" class="text-amber-600 hover:text-amber-900 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-amber-200 transition-colors inline-flex items-center gap-1.5 shadow-sm" title="Edit Profile">
+                        <i class="ph-bold ph-pencil-simple"></i> Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    // --- Lazy Loading Profile Modal Logic ---
+    const viewModal = document.getElementById('viewEmployeeModal');
+    
+    async function viewEmployeeDetails(employeeId) {
+        try {
+            const res = await fetch(`/admin/api/employees/${employeeId}/profile`);
+            if(!res.ok) {
+                alert("Failed to retrieve detailed profile.");
+                return;
+            }
+            const emp = await res.json();
+            
+            // Populate basic fields
+            document.getElementById('viewFullName').textContent = `${emp.FirstName} ${emp.LastName}`;
+            document.getElementById('viewEmpCode').textContent = emp.EmployeeCode;
+            document.getElementById('viewDesignation').textContent = emp.Designation || 'Unassigned';
+            document.getElementById('viewAvatar').textContent = emp.FirstName[0].toUpperCase();
+            
+            // Populate contact/corporate details
+            document.getElementById('viewDepartment').textContent = emp.Department || 'Unassigned';
+            document.getElementById('viewEmail').textContent = emp.Email;
+            document.getElementById('viewPhone').textContent = emp.Phone || 'Not Configured';
+            document.getElementById('viewDoj').textContent = new Date(emp.DateOfJoin).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            
+            // Populate KYC Details
+            document.getElementById('viewPAN').textContent = emp.PANNumber || 'Not Configured';
+            document.getElementById('viewAadhar').textContent = emp.AadharNumber || 'Not Configured';
+            document.getElementById('viewBankAccount').textContent = emp.BankAccountNumber || 'Not Configured';
+            document.getElementById('viewIFSC').textContent = emp.BankIFSCCode || 'Not Configured';
+            document.getElementById('viewBranch').textContent = emp.BranchName || 'Unassigned Branch';
+
+            // Populate Basic Pay field
+            document.getElementById('vpBasicPay').textContent = formatINR.format(emp.BasicPay || 0);
+
+            // Show Modal
+            viewModal.classList.remove('hidden');
+            viewModal.classList.add('flex');
+        } catch(err) {
+            alert("Network error. Unable to communicate with HR directory service.");
+        }
+    }
+
+    function closeViewModal() {
+        viewModal.classList.add('hidden');
+        viewModal.classList.remove('flex');
+    }
+
+    // --- Add Employee Modal Logic ---
+    const addModal = document.getElementById('addEmployeeModal');
+    
+    function openAddModal() { 
+        addModal.classList.remove('hidden'); 
+        addModal.classList.add('flex'); 
+    }
+    
+    function closeAddModal() { 
+        addModal.classList.add('hidden'); 
+        addModal.classList.remove('flex'); 
+        document.getElementById('addEmployeeForm').reset();
+        document.getElementById('formError').classList.add('hidden');
+    }
+
+    document.getElementById('addEmployeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submitBtn');
+        const errorBox = document.getElementById('formError');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Processing...';
+        errorBox.classList.add('hidden');
+
+        const payload = {
+            FirstName: document.getElementById('firstName').value,
+            LastName: document.getElementById('lastName').value,
+            Email: document.getElementById('email').value,
+            Phone: document.getElementById('phone').value,
+            Department: document.getElementById('department').value,
+            Designation: document.getElementById('designation').value,
+            BranchID: document.getElementById('branchID').value,
+            DateOfJoining: document.getElementById('doj').value,
+            PANNumber: document.getElementById('pan').value.toUpperCase(),
+            AadharNumber: document.getElementById('aadhar').value,
+            BankAccountNumber: document.getElementById('accountNo').value,
+            BankIFSCCode: document.getElementById('ifsc').value.toUpperCase(),
+            BasicPay: parseFloat(document.getElementById('addBasicPay').value) || 0.00
+        };
+
+        try {
+            const res = await fetch('/admin/api/employees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                closeAddModal();
+                loadEmployees(); 
+            } else {
+                errorBox.textContent = data.error || 'Failed to onboard employee.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Complete Registration';
+        }
+    });
+
+    // --- Edit Employee Modal Logic ---
+    const editModal = document.getElementById('editEmployeeModal');
+
+    async function openEditModal(employeeId) {
+        try {
+            const res = await fetch(`/admin/api/employees/${employeeId}/profile`);
+            if(!res.ok) {
+                alert("Failed to retrieve employee profile.");
+                return;
+            }
+            const emp = await res.json();
+            
+            document.getElementById('editEmployeeId').value = emp.EmployeeID;
+            document.getElementById('editFirstName').value = emp.FirstName;
+            document.getElementById('editLastName').value = emp.LastName;
+            document.getElementById('editEmail').value = emp.Email;
+            document.getElementById('editPhone').value = emp.Phone || '';
+            document.getElementById('editDepartment').value = emp.Department || '';
+            document.getElementById('editDesignation').value = emp.Designation || '';
+            document.getElementById('editBranchID').value = emp.BranchID || '';
+            
+            if (emp.DateOfJoin) {
+                const joinDate = new Date(emp.DateOfJoin);
+                const y = joinDate.getFullYear();
+                const m = String(joinDate.getMonth() + 1).padStart(2, '0');
+                const d = String(joinDate.getDate()).padStart(2, '0');
+                document.getElementById('editDoj').value = `${y}-${m}-${d}`;
+            } else {
+                document.getElementById('editDoj').value = '';
+            }
+            
+            document.getElementById('editPAN').value = emp.PANNumber || '';
+            document.getElementById('editAadhar').value = emp.AadharNumber || '';
+            document.getElementById('editBankAccount').value = emp.BankAccountNumber || '';
+            document.getElementById('editIFSC').value = emp.BankIFSCCode || '';
+            document.getElementById('editBasicPay').value = emp.BasicPay || 0;
+
+            editModal.classList.remove('hidden');
+            editModal.classList.add('flex');
+        } catch(err) {
+            alert("Network error. Unable to load profile details.");
+        }
+    }
+
+    function closeEditModal() {
+        editModal.classList.add('hidden');
+        editModal.classList.remove('flex');
+        document.getElementById('editEmployeeForm').reset();
+        document.getElementById('editFormError').classList.add('hidden');
+    }
+
+    document.getElementById('editEmployeeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('editSubmitBtn');
+        const errorBox = document.getElementById('editFormError');
+        const employeeId = document.getElementById('editEmployeeId').value;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Processing...';
+        errorBox.classList.add('hidden');
+
+        const payload = {
+            FirstName: document.getElementById('editFirstName').value,
+            LastName: document.getElementById('editLastName').value,
+            Email: document.getElementById('editEmail').value,
+            Phone: document.getElementById('editPhone').value,
+            Department: document.getElementById('editDepartment').value,
+            Designation: document.getElementById('editDesignation').value,
+            BranchID: document.getElementById('editBranchID').value,
+            DateOfJoining: document.getElementById('editDoj').value,
+            PANNumber: document.getElementById('editPAN').value.toUpperCase(),
+            AadharNumber: document.getElementById('editAadhar').value,
+            BankAccountNumber: document.getElementById('editBankAccount').value,
+            BankIFSCCode: document.getElementById('editIFSC').value.toUpperCase(),
+            BasicPay: parseFloat(document.getElementById('editBasicPay').value) || 0.00
+        };
+
+        try {
+            const res = await fetch(`/admin/api/employees/${employeeId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                closeEditModal();
+                loadEmployees(); 
+            } else {
+                errorBox.textContent = data.error || 'Failed to update employee profile.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Update Profile';
+        }
+    });
+
+    // --- Bulk Upload Modal Logic ---
+    const bulkModal = document.getElementById('bulkUploadModal');
+    function openBulkModal() { bulkModal.classList.remove('hidden'); bulkModal.classList.add('flex'); }
+    function closeBulkModal() { 
+        bulkModal.classList.add('hidden'); bulkModal.classList.remove('flex'); 
+        document.getElementById('bulkUploadForm').reset();
+        document.getElementById('bulkFormError').classList.add('hidden');
+        document.getElementById('bulkFormSuccess').classList.add('hidden');
+    }
+
+    document.getElementById('bulkUploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBulkBtn = document.getElementById('submitBulkBtn');
+        const errorBox = document.getElementById('bulkFormError');
+        const successBox = document.getElementById('bulkFormSuccess');
+        const fileInput = document.getElementById('csvFile');
+        
+        submitBulkBtn.disabled = true;
+        submitBulkBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Processing...';
+        errorBox.classList.add('hidden');
+        successBox.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const res = await fetch('/admin/api/employees/bulk-upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                successBox.textContent = data.message;
+                successBox.classList.remove('hidden');
+                setTimeout(() => {
+                    closeBulkModal();
+                    loadEmployees(); 
+                }, 2000);
+            } else {
+                errorBox.innerHTML = data.error || 'Upload failed.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBulkBtn.disabled = false;
+            submitBulkBtn.innerHTML = 'Upload & Process';
+        }
+    });
+</script>
+{% endblock %}

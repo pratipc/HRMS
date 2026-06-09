@@ -1,0 +1,257 @@
+<!-- File Name: admin.html -->
+<!-- Location: kpcb_hrms/app/templates/dashboards/admin.html -->
+{% extends "layouts/admin_base.html" %}
+
+{% block header_title %}Admin Overview{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+
+    <!-- Hero / Welcome Panel -->
+    <div class="glass-panel p-8 rounded-3xl border shadow-sm relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div class="relative z-10">
+            <div class="flex items-center gap-3 mb-2">
+                <span class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-widest border border-indigo-100">
+                    System Active
+                </span>
+                <span id="liveClock" class="text-xs font-semibold text-slate-500 font-mono">--:--:--</span>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-800 tracking-tight">
+                <span id="greetingText">Welcome</span>, {{ user.username }}! 👋
+            </h2>
+            <p class="text-slate-500 text-sm font-medium mt-2 max-w-2xl leading-relaxed">
+                Here is your daily digest for the Kolkata Police Cooperative Bank HRMS. You have <a href="/admin/leave-approvals" class="text-indigo-600 font-bold hover:underline">{{ metrics.PendingLeaves }} pending tasks</a> requiring your attention today.
+            </p>
+        </div>
+        
+        <!-- Decorative Graphic -->
+        <div class="hidden lg:flex items-center justify-center relative z-10 mr-6">
+            <div class="h-24 w-24 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100/50 shadow-inner">
+                <i class="ph-duotone ph-buildings text-5xl text-indigo-400"></i>
+            </div>
+            <!-- Orbiting elements -->
+            <div class="absolute h-3 w-3 bg-emerald-400 rounded-full top-0 -left-2 animate-bounce"></div>
+            <div class="absolute h-2 w-2 bg-amber-400 rounded-full bottom-2 -right-4 animate-pulse"></div>
+        </div>
+
+        <!-- Background Gradients -->
+        <div class="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-indigo-50/50 to-transparent pointer-events-none"></div>
+    </div>
+
+    <!-- Key Performance Indicators (KPIs) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Metric 1: Total Employees -->
+        <a href="/admin/employees" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white">
+            <div class="flex justify-between items-start mb-4">
+                <div class="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-sm">
+                    <i class="ph-bold ph-users text-2xl"></i>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100">
+                    <i class="ph-bold ph-trend-up mr-1"></i> Active
+                </span>
+            </div>
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Personnel</h3>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-3xl font-black text-slate-800 tracking-tight">{{ metrics.TotalEmployees }}</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Metric 2: Today's Attendance -->
+        <a href="/admin/attendance-master" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white">
+            <div class="flex justify-between items-start mb-4">
+                <div class="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors shadow-sm">
+                    <i class="ph-bold ph-fingerprint text-2xl"></i>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                    Today
+                </span>
+            </div>
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Punched In</h3>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-3xl font-black text-slate-800 tracking-tight">{{ metrics.TodayPresent }}</p>
+                    <p class="text-sm font-semibold text-slate-500">/ {{ metrics.TotalEmployees }}</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Metric 3: Pending Leaves -->
+        <a href="/admin/leave-approvals" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white relative overflow-hidden">
+            <div class="flex justify-between items-start mb-4 relative z-10">
+                <div class="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors shadow-sm relative">
+                    <i class="ph-bold ph-calendar-check text-2xl"></i>
+                    {% if metrics.PendingLeaves > 0 %}
+                    <!-- Notification Dot -->
+                    <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white"></span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="relative z-10">
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Leave Requests</h3>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-3xl font-black text-slate-800 tracking-tight">{{ metrics.PendingLeaves }}</p>
+                    <p class="text-sm font-semibold text-amber-600">Pending</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Metric 4: Total Branches -->
+        <a href="/admin/branches" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white">
+            <div class="flex justify-between items-start mb-4">
+                <div class="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                    <i class="ph-bold ph-buildings text-2xl"></i>
+                </div>
+                <span class="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200">
+                    <i class="ph-bold ph-map-pin mr-1"></i> Active
+                </span>
+            </div>
+            <div>
+                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Branches</h3>
+                <div class="flex items-baseline gap-2">
+                    <p class="text-3xl font-black text-slate-800 tracking-tight mt-1">{{ metrics.TotalBranches }}</p>
+                </div>
+            </div>
+        </a>
+
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Quick Actions Module Grid -->
+        <div class="glass-panel p-6 rounded-2xl border shadow-sm lg:col-span-1 bg-white/40">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph-bold ph-lightning text-indigo-500"></i> Action Center
+                </h3>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <a href="/admin/employees" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white border border-slate-100 hover:border-indigo-200 hover:shadow-md transition-all text-center group">
+                    <div class="h-10 w-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                        <i class="ph-bold ph-user-plus text-xl"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Onboard<br>Staff</span>
+                </a>
+                
+                <a href="/admin/attendance-master" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all text-center group">
+                    <div class="h-10 w-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                        <i class="ph-bold ph-fingerprint text-xl"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Upload<br>Biometrics</span>
+                </a>
+
+                <a href="/admin/leave-approvals" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white border border-slate-100 hover:border-amber-200 hover:shadow-md transition-all text-center group">
+                    <div class="h-10 w-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
+                        <i class="ph-bold ph-check-square-offset text-xl"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Approve<br>Leaves</span>
+                </a>
+
+                <a href="/admin/holidays" class="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white border border-slate-100 hover:border-rose-200 hover:shadow-md transition-all text-center group">
+                    <div class="h-10 w-10 rounded-full bg-slate-50 text-slate-500 flex items-center justify-center group-hover:bg-rose-50 group-hover:text-rose-600 transition-colors">
+                        <i class="ph-bold ph-calendar-plus text-xl"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-700">Manage<br>Holidays</span>
+                </a>
+            </div>
+            
+            <!-- Quick Link -->
+            <div class="mt-4 pt-4 border-t border-slate-200/60">
+                <a href="/admin/leave-master" class="flex items-center justify-between p-3 rounded-lg hover:bg-white transition-colors text-sm font-semibold text-slate-600 group">
+                    <span class="flex items-center gap-2"><i class="ph-bold ph-sliders text-slate-400 group-hover:text-indigo-500"></i> Configure Leave Policies</span>
+                    <i class="ph-bold ph-caret-right text-slate-400 group-hover:translate-x-1 transition-transform"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Right Column: System Audit / Activity Timeline -->
+        <div class="glass-panel p-6 rounded-2xl border shadow-sm lg:col-span-2 flex flex-col bg-white/60">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph-bold ph-list-magnifying-glass text-indigo-500"></i> Recent Audit Logs
+                </h3>
+                <span class="px-2 py-1 rounded bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Updates</span>
+            </div>
+            
+            <!-- Elegant Timeline View -->
+            <div class="flex-1 px-2">
+                <div class="relative border-l border-slate-200 ml-3 space-y-6 pb-4">
+                    
+                    <!-- Timeline Item 1 -->
+                    <div class="relative pl-6">
+                        <div class="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="text-sm font-bold text-slate-800">Biometric Attendance Uploaded</h4>
+                            <span class="text-[10px] font-bold text-slate-400">10 mins ago</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">Monthly_BasicReport080626.csv was successfully parsed. 231 attendance records updated for May 2026.</p>
+                    </div>
+
+                    <!-- Timeline Item 2 -->
+                    <div class="relative pl-6">
+                        <div class="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-indigo-500 ring-4 ring-indigo-50"></div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="text-sm font-bold text-slate-800">New Employee Onboarded</h4>
+                            <span class="text-[10px] font-bold text-slate-400">2 hours ago</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">Mike Doe (KPCB-002) was added to Operations as Sub Accountant.</p>
+                    </div>
+
+                    <!-- Timeline Item 3 -->
+                    <div class="relative pl-6">
+                        <div class="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-amber-500 ring-4 ring-amber-50"></div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="text-sm font-bold text-slate-800">Leave Application Approved</h4>
+                            <span class="text-[10px] font-bold text-slate-400">Yesterday</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">You approved 2 days of Casual Leave for Sourav Ganguly (KPCB-003).</p>
+                    </div>
+                    
+                    <!-- Timeline Item 4 -->
+                    <div class="relative pl-6">
+                        <div class="absolute -left-1.5 top-1.5 h-3 w-3 rounded-full bg-slate-300 ring-4 ring-slate-50"></div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="text-sm font-bold text-slate-800">Global Allowance Updated</h4>
+                            <span class="text-[10px] font-bold text-slate-400">May 1, 2026</span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-medium">System Admin updated DA rate to 18.00%. Salary ledgers recalculated.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-slate-100 text-center">
+                <a href="#" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">View Complete Audit Trail <i class="ph-bold ph-arrow-right inline-block translate-y-0.5"></i></a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Scripts for Dynamic UI Elements -->
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Dynamic Time-based Greeting
+        const hour = new Date().getHours();
+        const greetingEl = document.getElementById('greetingText');
+        if (hour < 12) greetingEl.textContent = 'Good Morning';
+        else if (hour < 17) greetingEl.textContent = 'Good Afternoon';
+        else greetingEl.textContent = 'Good Evening';
+
+        // Live Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }, 1000);
+
+        // TODO: In Phase 4, fetch live counts for the KPI cards via an API endpoint.
+        // e.g. fetch('/admin/api/dashboard/metrics').then(...)
+    });
+</script>
+{% endblock %}

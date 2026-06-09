@@ -1,0 +1,181 @@
+<!-- File Name: admin_base.html -->
+<!-- Location: kpcb_hrms/app/templates/layouts/admin_base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - KPCB HRMS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style> 
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; /* slate-50 */
+            margin: 0;
+        } 
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Utility class to keep existing glass-panel styling for inner cards */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-color: rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+<body class="flex h-screen text-slate-800 overflow-hidden bg-slate-50">
+
+    <!-- Glassmorphism Sidebar Navigation -->
+    <aside class="w-72 glass-panel flex flex-col border-r border-slate-200 transition-all duration-300 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <!-- Logo Area -->
+        <div class="h-20 flex items-center px-8 border-b border-slate-200/60">
+            <div class="h-10 w-10 rounded-xl bg-indigo-500 flex items-center justify-center mr-3 shadow-lg shadow-indigo-500/20">
+                <i class="ph-bold ph-buildings text-2xl text-white"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold tracking-wide text-slate-800 leading-tight">KPCB</h2>
+                <p class="text-[10px] font-bold text-indigo-600 tracking-widest uppercase">Admin Portal</p>
+            </div>
+        </div>
+        
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-4 py-8 space-y-1 overflow-y-auto">
+            <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Main Menu</p>
+            
+            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-squares-four text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Dashboard
+            </a>
+            
+            <a href="/admin/employees" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-users text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Employee Directory
+            </a>
+
+            <a href="/admin/branches" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-buildings text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Branch Directory
+            </a>
+
+            <a href="/admin/holidays" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-calendar-blank text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Holiday Calendar
+            </a>
+            
+            <a href="/admin/leave-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-sliders text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Leave Policies
+            </a>
+            
+            <a href="/admin/leave-approvals" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-calendar-check text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Leave Approvals
+            </a>
+
+            <a href="/admin/attendance-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-clock text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Attendance & Shifts
+            </a>
+            
+            <a href="/admin/payroll-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-money text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Payroll & Salary
+            </a>
+        </nav>
+        
+        <!-- User Actions -->
+        <div class="p-4 border-t border-slate-200/60 mb-2">
+            <button onclick="logout()" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all group border border-transparent hover:border-red-100">
+                <i class="ph-bold ph-sign-out text-lg group-hover:-translate-x-1 transition-transform"></i> 
+                <span>Secure Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area (Removed relative and z-10 to prevent modal clipping) -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Solid Top Header -->
+        <header class="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 relative z-10 shadow-sm">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold text-slate-800 tracking-tight">
+                    {% block header_title %}Dashboard{% endblock %}
+                </h1>
+            </div>
+            
+            <!-- Right Side Header Utilities -->
+            <div class="flex items-center gap-6">
+                <!-- Search Bar -->
+                <div class="hidden md:flex items-center relative">
+                    <i class="ph ph-magnifying-glass absolute left-3 text-slate-400 text-lg"></i>
+                    <input type="text" placeholder="Global Search..." class="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:bg-white focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 transition-all w-64 shadow-sm placeholder:font-normal">
+                </div>
+
+                <!-- Notifications -->
+                <button class="relative text-slate-400 hover:text-indigo-600 transition-colors">
+                    <i class="ph-fill ph-bell text-2xl"></i>
+                    <span class="absolute top-0 right-0 h-2 w-2 bg-red-500 border border-white rounded-full"></span>
+                </button>
+
+                <div class="h-6 w-px bg-slate-200"></div>
+
+                <!-- User Profile Dropdown -->
+                <div class="flex items-center gap-3 cursor-pointer group">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ user.username }}</p>
+                        <p class="text-xs text-slate-500 font-semibold">{{ user.role }}</p>
+                    </div>
+                    <div class="relative">
+                        <div class="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-md group-hover:bg-indigo-600 transition-colors">
+                            {{ user.username[0] | upper }}
+                        </div>
+                        <div class="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
+                    </div>
+                    <i class="ph-bold ph-caret-down text-slate-400 group-hover:text-indigo-600 transition-colors text-xs ml-1"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="flex-1 overflow-auto p-6 sm:p-8 bg-slate-50 relative">
+            <div class="max-w-7xl mx-auto">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Scripts -->
+    <script>
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Logout failed:', error);
+                window.location.href = '/login'; 
+            }
+        }
+    </script>
+</body>
+</html>

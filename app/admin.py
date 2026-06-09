@@ -1,0 +1,589 @@
+# File Name: admin.py
+# Location: kpcb_hrms/app/admin.py
+
+from flask import Blueprint, render_template, session, request, jsonify, Response
+from app.utils.auth_decorators import role_required
+from app import db
+import datetime
+import csv
+from io import StringIO
+
+# 1. Import Core HR Domain (for employees)
+from app.repositories.sql_core_hr_repository import SqlCoreHrRepository
+from app.services.core_hr_service import CoreHrService
+
+# 2. Import Time & Action Domain (for holidays, leaves, attendance)
+from app.repositories.sql_time_action_repo import SqlTimeActionRepository
+from app.services.time_action_service import TimeActionService
+
+#3. Payroll Services (for pay scale management and salary details)
+from app.repositories.sql_payroll_repository import SqlPayrollRepository
+from app.services.payroll_service import PayrollService
+
+# Create the Admin Blueprint with a URL prefix
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+@admin_bp.route('/dashboard')
+@role_required('Admin')
+def dashboard():
+    """Renders the Admin Dashboard."""
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    metrics = service.get_dashboard_metrics()
+    return render_template('dashboards/admin.html', user=session, metrics=metrics)
+
+# ---------------------------------------------------------
+# TIME, ATTENDANCE & SHIFT MANAGEMENT
+# ---------------------------------------------------------
+@admin_bp.route('/attendance-master', methods=['GET'])
+@role_required('Admin')
+def attendance_master_page():
+    """Renders the unified Attendance Register and Ingestion Portal."""
+    return render_template('admin/attendance_master.html', user=session, today=datetime.date.today().strftime('%Y-%m-%d'))
+
+@admin_bp.route('/api/attendance/monthly-register', methods=['GET'])
+@role_required('Admin')
+def get_monthly_attendance_register():
+    month_str = request.args.get('month', datetime.date.today().strftime('%Y-%m'))
+    service = TimeActionService(SqlTimeActionRepository(db.session))
+    try:
+        register = service.fetch_monthly_register(month_str)
+        return jsonify(register), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/attendance/register', methods=['GET'])
+@role_required('Admin')
+def get_attendance_register():
+    date_str = request.args.get('date', datetime.date.today().strftime('%Y-%m-%d'))
+    service = TimeActionService(SqlTimeActionRepository(db.session))
+    try:
+        register = service.fetch_daily_register(date_str)
+        return jsonify(register), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/attendance/biometric-upload', methods=['POST'])
+@role_required('Admin')
+def upload_biometric_punches():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    file = request.files['file']
+    
+    # Validation against improper formats
+    if not file.filename.lower().endswith(('.csv', '.xls', '.xlsx')):
+        return jsonify({"error": "Please upload your Monthly Basic Report as an .XLS or .CSV file."}), 400
+        
+    try:
+        service = TimeActionService(SqlTimeActionRepository(db.session))
+        # Send the raw file to our bespoke ETL parser
+        success_count, errors = service.process_biometric_upload(file)
+        
+        if errors:
+            return jsonify({"message": f"Processed {success_count} daily attendance points with anomalies.", "details": errors}), 207
+        return jsonify({"message": f"Successfully parsed and mapped {success_count} daily attendance logs. Rosters updated!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# ---------------------------------------------------------
+# EMPLOYEE DIRECTORY MASTER UI & API ROUTES
+# ---------------------------------------------------------
+@admin_bp.route('/employees', methods=['GET'])
+@role_required('Admin')
+def employee_master_page():
+    """Renders the Employee Master UI."""
+    return render_template('admin/employee_master.html', user=session)
+
+@admin_bp.route('/api/employees/<int:employee_id>', methods=['GET'])
+@role_required('Admin')
+def get_employee_details(employee_id):
+    """API to lazy-load detailed profile (KYC, Banking, Contact) for an employee."""
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        details = service.get_employee_details(employee_id)
+        if not details:
+            return jsonify({"error": "Employee not found."}), 404
+        return jsonify(details), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/employees/<int:employee_id>/profile', methods=['GET'])
+@role_required('Admin')
+def get_employee_profile(employee_id):
+    """Lazy-loads complete decrypted KYC, banking, and payroll details of a specific employee."""
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        profile = service.get_employee_full_profile(employee_id)
+        if not profile:
+            return jsonify({"error": "Profile not found"}), 404
+        return jsonify(profile), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/employees', methods=['GET'])
+@role_required('Admin')
+def get_employees():
+    """API to fetch all active employees, optionally filtered by branch."""
+    branch_id = request.args.get('branch_id')
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        employees = service.get_active_employees(branch_id)
+        return jsonify(employees), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# BRANCH MANAGEMENT UI & API ROUTES
+# ---------------------------------------------------------
+@admin_bp.route('/branches', methods=['GET'])
+@role_required('Admin')
+def branch_master_page():
+    """Renders the Branch Master UI."""
+    return render_template('admin/branch_master.html', user=session)
+
+@admin_bp.route('/api/branches', methods=['GET'])
+@role_required('Admin')
+def get_branches():
+    """API to fetch all branches."""
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        branches = service.get_branches()
+        return jsonify(branches), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/branches', methods=['POST'])
+@role_required('Admin')
+def add_branch():
+    """API to create a new branch."""
+    data = request.json
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        result = service.create_branch(data)
+        return jsonify({"message": "Branch created successfully!", "data": result}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/branches/<int:branch_id>', methods=['PUT'])
+@role_required('Admin')
+def edit_branch(branch_id):
+    """API to update an existing branch."""
+    data = request.json
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        service.update_branch(branch_id, data)
+        return jsonify({"message": "Branch updated successfully!"}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/employees', methods=['POST'])
+@role_required('Admin')
+def add_employee():
+    """API to create a new employee."""
+    data = request.json
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    
+    try:
+        result = service.create_new_employee(data)
+        return jsonify({"message": "Employee created successfully!", "data": result}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except RuntimeError as re:
+        return jsonify({"error": str(re)}), 500
+    except Exception as e:
+        return jsonify({"error": "An internal server error occurred"}), 500
+
+@admin_bp.route('/api/employees/<int:employee_id>', methods=['PUT'])
+@role_required('Admin')
+def edit_employee(employee_id):
+    """API to update an existing employee's profile."""
+    data = request.json
+    repo = SqlCoreHrRepository(db.session)
+    service = CoreHrService(repo)
+    try:
+        result = service.update_employee_profile(employee_id, data)
+        return jsonify({"message": "Employee updated successfully!", "data": result}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "An internal server error occurred"}), 500
+
+@admin_bp.route('/api/employees/template', methods=['GET'])
+@role_required('Admin')
+def download_employee_template():
+    """Provides a downloadable CSV template with expanded KYC, branch, and banking headers."""
+    headers = [
+        "FirstName", "LastName", "Email", "Phone", "Department", "Designation",
+        "DateOfJoining", "PANNumber", "AadharNumber", "BankAccountNumber",
+        "BankIFSCCode", "BranchName", "BasicPay"
+    ]
+    sample_row_1 = [
+        "Sourav", "Ganguly", "sourav.g@kpcb.com", "+919876543210", "Administration", "Manager",
+        "2026-01-15", "ABCDE1234F", "123456789012", "111222333444", "UTIB0000123", "Kolkata Police HQ", "55000.00"
+    ]
+    
+    csv_content = ",".join(headers) + "\n" + ",".join(sample_row_1) + "\n"
+    
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=employee_onboarding_template.csv"}
+    )
+
+@admin_bp.route('/api/employees/bulk-upload', methods=['POST'])
+@role_required('Admin')
+def bulk_upload_employees():
+    """API to process bulk employee onboarding from CSV with branch name resolution."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+        
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Only CSV files are supported"}), 400
+
+    try:
+        # 1. Resolve Branches for mapping
+        repo = SqlCoreHrRepository(db.session)
+        service = CoreHrService(repo)
+        branches = service.get_branches()
+        branch_map = {b['BranchName'].strip().lower(): b['BranchID'] for b in branches}
+
+        # 2. Process CSV
+        stream = StringIO(file.stream.read().decode("utf-8-sig"), newline=None)
+        csv_input = csv.DictReader(stream)
+        employees_data = list(csv_input)
+        
+        # 3. Enrich data with resolved BranchIDs
+        for row in employees_data:
+            branch_name = row.get('BranchName', '').strip().lower()
+            if branch_name in branch_map:
+                row['BranchID'] = branch_map[branch_name]
+            else:
+                # Fallback to first branch if name not matched
+                if branches:
+                    row['BranchID'] = branches[0]['BranchID']
+                else:
+                    raise ValueError(f"No active branches found to tag employee: {row.get('FirstName')}")
+
+        results = repo.bulk_create_employees(employees_data)
+        return jsonify({"message": f"Successfully imported {len(results)} employees."}), 200
+    except Exception as e:
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+
+# ---------------------------------------------------------
+# HOLIDAY CALENDAR MASTER UI & API ROUTES
+# ---------------------------------------------------------
+@admin_bp.route('/holidays', methods=['GET'])
+@role_required('Admin')
+def holiday_master_page():
+    """Renders the Holiday Master UI."""
+    return render_template('admin/holiday_master.html', user=session, current_year=datetime.datetime.now().year)
+
+@admin_bp.route('/api/holidays/<int:year>', methods=['GET'])
+@role_required('Admin')
+def get_holidays(year):
+    """API to fetch holidays for a specific calendar year."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        holidays = service.fetch_holidays(year)
+        return jsonify(holidays), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/holidays', methods=['POST'])
+@role_required('Admin')
+def add_holiday():
+    """API to create a new holiday."""
+    data = request.json
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.create_holiday(data)
+        return jsonify({"message": "Holiday added successfully", "data": result}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "An internal server error occurred"}), 500
+
+@admin_bp.route('/api/holidays/template', methods=['GET'])
+@role_required('Admin')
+def download_holiday_template():
+    """Provides a downloadable CSV template for bulk holiday upload."""
+    csv_content = "HolidayDate,HolidayName,HolidayType\n2026-01-26,Republic Day,National\n2026-04-01,Yearly Closing,Bank Closure\n2026-10-19,Durga Puja,State\n"
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=holiday_upload_template.csv"}
+    )
+
+@admin_bp.route('/api/holidays/bulk-upload', methods=['POST'])
+@role_required('Admin')
+def bulk_upload_holidays():
+    """API to process bulk holiday upload from CSV."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+        
+    if not file.filename.endswith('.csv'):
+        return jsonify({"error": "Only CSV files are supported"}), 400
+
+    try:
+        stream = StringIO(file.stream.read().decode("utf-8-sig"), newline=None)
+        csv_input = csv.DictReader(stream)
+        
+        repo = SqlTimeActionRepository(db.session)
+        service = TimeActionService(repo)
+        
+        success_count, errors = service.process_bulk_upload(csv_input)
+        
+        if errors and success_count == 0:
+            return jsonify({"error": "Bulk upload failed.", "details": errors}), 400
+        elif errors:
+            return jsonify({"message": f"Partial success: Added {success_count} holidays.", "details": errors}), 207
+        else:
+            return jsonify({"message": f"Successfully imported {success_count} holidays."}), 200
+    except Exception as e:
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+@admin_bp.route('/api/holidays/<int:holiday_id>', methods=['PUT'])
+@role_required('Admin')
+def edit_holiday(holiday_id):
+    """API to edit an existing holiday."""
+    data = request.json
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.modify_holiday(holiday_id, data)
+        return jsonify({"message": "Holiday updated successfully", "data": result}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "An internal server error occurred"}), 500
+
+# ---------------------------------------------------------
+# LEAVE MASTER UI & API CONFIGURATION ROUTES
+# ---------------------------------------------------------
+@admin_bp.route('/leave-master', methods=['GET'])
+@role_required('Admin')
+def leave_master_page():
+    """Renders the Leave Policy Master UI."""
+    return render_template(
+        'admin/leave_master.html', 
+        user=session, 
+        current_year=datetime.datetime.now().year
+    )
+
+@admin_bp.route('/api/leave-types', methods=['GET'])
+@role_required('Admin')
+def get_leave_types():
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        return jsonify(service.fetch_leave_types()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leave-types', methods=['POST'])
+@role_required('Admin')
+def add_leave_type():
+    data = request.json
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.create_leave_policy(data)
+        return jsonify({"message": "Leave policy created successfully", "data": result}), 201
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leave-types/<int:type_id>', methods=['PUT'])
+@role_required('Admin')
+def edit_leave_type(type_id):
+    data = request.json
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.modify_leave_policy(type_id, data)
+        return jsonify({"message": "Leave policy updated successfully", "data": result}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# LEAVE CAPPING ENGINE EXECUTION ROUTES
+# ---------------------------------------------------------
+@admin_bp.route('/api/leaves/balances/<int:year>', methods=['GET'])
+@role_required('Admin')
+def get_employee_leave_balances(year):
+    """API to fetch leave balances and the active capping lock status."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        balances = service.fetch_employee_leave_balances(year)
+        is_locked = service.check_if_year_locked(year)
+        
+        # Unified response dictionary to safely transfer state to Javascript
+        return jsonify({
+            "balances": balances,
+            "is_locked": is_locked
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leaves/year-end', methods=['POST'])
+@role_required('Admin')
+def run_year_end_processing():
+    """API to execute the year-end leave capping algorithms."""
+    data = request.json
+    year = data.get('year')
+    processed_by = session.get('username', 'System Admin')
+    
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.run_year_end_processing(int(year), processed_by)
+        return jsonify({
+            "message": f"Successfully completed year-end processing! Prepared cycle balances for year {int(year) + 1}.",
+            "data": result
+        }), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# LEAVE APPROVALS UI & REST API ENDPOINTS
+# ---------------------------------------------------------
+@admin_bp.route('/leave-approvals', methods=['GET'])
+@role_required('Admin')
+def leave_approvals_page():
+    """Renders the Leave Approvals Management Dashboard."""
+    return render_template('admin/leave_approvals.html', user=session)
+
+@admin_bp.route('/api/leaves/pending', methods=['GET'])
+@role_required('Admin')
+def get_pending_leaves():
+    """Rest API to fetch all active pending leave applications."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        return jsonify(service.fetch_pending_leave_applications()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leaves/history', methods=['GET'])
+@role_required('Admin')
+def get_leave_history():
+    """Retrieves processed (approved/rejected) leave applications for the Audit History Tab."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        return jsonify(service.fetch_processed_leave_applications()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leaves/process', methods=['POST'])
+@role_required('Admin')
+def process_leave():
+    """Rest API to Approve or Reject an active leave request."""
+    data = request.json
+    
+    # Robustly handle both Javascript casing styles to prevent missing ID errors
+    application_id = data.get('application_id') or data.get('ApplicationID')
+    status = data.get('status') or data.get('Status') # 'Approved' or 'Rejected'
+    
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        result = service.process_leave_application(int(application_id), status)
+        return jsonify({
+            "message": f"Leave application successfully {status.lower()}!",
+            "data": result
+        }), 200
+    except ValueError as ve:
+        # Gracefully catch insufficient balance or application states and show to manager
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+#--------------SATURDAY & SUNDAY WEEKLY OFF CONFIGURATION ROUTES----------------
+@admin_bp.route('/api/weekly-offs', methods=['GET'])
+@role_required('Admin')
+def get_weekly_offs():
+    """API to fetch the active Weekend off rules."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        return jsonify(service.fetch_weekly_offs()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/weekly-offs', methods=['POST'])
+@role_required('Admin')
+def update_weekly_offs():
+    """API to completely overwrite the Weekend off rules."""
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        service.save_weekly_offs(request.json)
+        return jsonify({"message": "Weekend Configuration saved successfully! Leave calculations will now use these rules."}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# PAYROLL & COMPENSATION (NEW UI ROUTE ADDED HERE)
+# ---------------------------------------------------------
+@admin_bp.route('/payroll-master', methods=['GET'])
+@role_required('Admin')
+def payroll_master_page():
+    """Renders the Dynamic Payroll & Compensation Dashboard."""
+    return render_template('admin/payroll_master.html', user=session)
+
+@admin_bp.route('/api/payroll/salaries', methods=['GET'])
+@role_required('Admin')
+def get_salaries():
+    return jsonify(PayrollService(SqlPayrollRepository(db.session)).get_salaries()), 200
+
+@admin_bp.route('/api/payroll/employee/<int:emp_id>/basic', methods=['PUT'])
+@role_required('Admin')
+def update_basic_pay(emp_id):
+    try:
+        PayrollService(SqlPayrollRepository(db.session)).update_basic_pay(emp_id, request.json.get('BasicPay'))
+        return jsonify({"message": "Basic pay updated successfully!"}), 200
+    except ValueError as ve: return jsonify({"error": str(ve)}), 400
+    except Exception as e: return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/config', methods=['GET', 'PUT'])
+@role_required('Admin')
+def manage_allowance_config():
+    service = PayrollService(SqlPayrollRepository(db.session))
+    if request.method == 'GET':
+        return jsonify(service.get_allowances_config()), 200
+    try:
+        service.update_allowances_config(request.json.get('DA'), request.json.get('HRA'), request.json.get('MA'))
+        return jsonify({"message": "Global allowances updated. All salaries recalculated!"}), 200
+    except ValueError as ve: return jsonify({"error": str(ve)}), 400
+    except Exception as e: return jsonify({"error": str(e)}), 500

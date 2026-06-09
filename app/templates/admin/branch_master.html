@@ -1,0 +1,262 @@
+<!-- File Name: branch_master.html -->
+<!-- Location: kpcb_hrms/app/templates/admin/branch_master.html -->
+{% extends "layouts/admin_base.html" %}
+
+{% block header_title %}Branch Management{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">Branch Directory</h2>
+            <p class="text-sm text-slate-500">Manage bank branches, regional offices, and divisional units.</p>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full lg:w-auto">
+            <!-- Search Bar -->
+            <div class="relative flex-1 lg:w-64">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="branchSearchInput" placeholder="Search branches..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm">
+            </div>
+
+            <!-- Add Button -->
+            <button onclick="openAddBranchModal()" class="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 whitespace-nowrap">
+                <i class="ph-bold ph-plus-circle"></i> Create Branch
+            </button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white relative min-h-[400px]">
+        <!-- Loading State -->
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
+            <i class="ph-bold ph-spinner animate-spin text-4xl mb-3 text-indigo-500"></i>
+            <p class="font-medium text-slate-500">Loading branches...</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50/50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        <th class="px-6 py-4 font-semibold">Branch Code</th>
+                        <th class="px-6 py-4 font-semibold">Branch Name</th>
+                        <th class="px-6 py-4 font-semibold">Location</th>
+                        <th class="px-6 py-4 font-semibold">Status</th>
+                        <th class="px-6 py-4 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="branchTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-500">
+                            <i class="ph-bold ph-spinner animate-spin text-2xl mb-2"></i>
+                            <p>Loading directory...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Branch Modal -->
+<div id="branchModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-100 transition-transform">
+        <div class="px-8 py-6 bg-gradient-to-tr from-indigo-600 to-blue-500 text-white relative">
+            <button onclick="closeBranchModal()" class="absolute top-4 right-4 h-8 w-8 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center text-white transition-colors">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+            <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center border border-white/30 text-white shadow-inner">
+                    <i class="ph-bold ph-buildings text-2xl"></i>
+                </div>
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-bold tracking-tight">Create New Branch</h3>
+                    <p class="text-indigo-100 text-xs font-medium mt-0.5">Define a new banking division.</p>
+                </div>
+            </div>
+        </div>
+
+        <form id="branchForm" class="p-8 space-y-5">
+            <input type="hidden" id="editBranchId">
+            <div id="branchFormError" class="hidden p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100"></div>
+
+            <div class="grid grid-cols-1 gap-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Branch Name <span class="text-red-500">*</span></label>
+                    <input type="text" id="branchName" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm transition-all" placeholder="e.g. Kolkata Head Office">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Branch Code <span class="text-red-500">*</span></label>
+                    <input type="text" id="branchCode" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-mono transition-all" placeholder="e.g. BR-KOL-01">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Geographic Location / Region</label>
+                    <textarea id="location" rows="2" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm transition-all" placeholder="Enter branch address or region details..."></textarea>
+                </div>
+                <div id="statusToggleGroup" class="hidden items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                        <p class="text-sm font-bold text-slate-700">Active Status</p>
+                        <p class="text-xs text-slate-500">Toggle to enable/disable this branch.</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="isActive" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-4">
+                <button type="button" onclick="closeBranchModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Cancel</button>
+                <button type="submit" id="saveBranchBtn" class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">
+                    Save Branch
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let globalBranchData = [];
+
+    document.addEventListener('DOMContentLoaded', loadBranches);
+
+    // --- Search Logic ---
+    document.getElementById('branchSearchInput').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = globalBranchData.filter(b => 
+            b.BranchName.toLowerCase().includes(term) || 
+            b.BranchCode.toLowerCase().includes(term) ||
+            (b.Location || '').toLowerCase().includes(term)
+        );
+        renderTable(filtered);
+    });
+
+    async function loadBranches() {
+        document.getElementById('loadingState').classList.remove('hidden');
+        try {
+            const res = await fetch('/admin/api/branches');
+            globalBranchData = await res.json();
+            renderTable(globalBranchData);
+        } catch (err) {
+            document.getElementById('branchTableBody').innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Failed to load branches.</td></tr>`;
+        } finally {
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('branchTableBody');
+        if(!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No branches found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(branch => `
+            <tr class="hover:bg-slate-50/80 transition-colors group">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        ${branch.BranchCode}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm font-bold text-slate-800">${branch.BranchName}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-medium">
+                    ${branch.Location || '<i class="text-slate-300">Not Specified</i>'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    ${branch.IsActive 
+                        ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><i class="ph-fill ph-check-circle"></i> Active</span>' 
+                        : '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">
+                    <button onclick='openEditBranchModal(${JSON.stringify(branch)})' class="text-indigo-600 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors inline-flex items-center gap-1.5 shadow-sm">
+                        <i class="ph-bold ph-pencil-simple"></i> Edit
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openAddBranchModal() {
+        document.getElementById('modalTitle').innerText = 'Create New Branch';
+        document.getElementById('editBranchId').value = '';
+        document.getElementById('branchForm').reset();
+        document.getElementById('statusToggleGroup').classList.add('hidden');
+        document.getElementById('statusToggleGroup').classList.remove('flex');
+        document.getElementById('branchModal').classList.remove('hidden');
+        document.getElementById('branchModal').classList.add('flex');
+    }
+
+    function openEditBranchModal(branch) {
+        document.getElementById('modalTitle').innerText = 'Modify Branch Details';
+        document.getElementById('editBranchId').value = branch.BranchID;
+        document.getElementById('branchName').value = branch.BranchName;
+        document.getElementById('branchCode').value = branch.BranchCode;
+        document.getElementById('location').value = branch.Location || '';
+        document.getElementById('isActive').checked = branch.IsActive;
+        document.getElementById('statusToggleGroup').classList.remove('hidden');
+        document.getElementById('statusToggleGroup').classList.add('flex');
+        document.getElementById('branchModal').classList.remove('hidden');
+        document.getElementById('branchModal').classList.add('flex');
+    }
+
+    function closeBranchModal() {
+        document.getElementById('branchModal').classList.add('hidden');
+        document.getElementById('branchModal').classList.remove('flex');
+        document.getElementById('branchFormError').classList.add('hidden');
+    }
+
+    document.getElementById('branchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const branchId = document.getElementById('editBranchId').value;
+        const submitBtn = document.getElementById('saveBranchBtn');
+        const errorBox = document.getElementById('branchFormError');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving...';
+        errorBox.classList.add('hidden');
+
+        const payload = {
+            BranchName: document.getElementById('branchName').value,
+            BranchCode: document.getElementById('branchCode').value,
+            Location: document.getElementById('location').value,
+            IsActive: document.getElementById('isActive').checked
+        };
+
+        const method = branchId ? 'PUT' : 'POST';
+        const url = branchId ? `/admin/api/branches/${branchId}` : '/admin/api/branches';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                closeBranchModal();
+                loadBranches();
+            } else {
+                errorBox.textContent = data.error || 'Failed to save branch.';
+                errorBox.classList.remove('hidden');
+            }
+        } catch (err) {
+            errorBox.textContent = 'Server connection failed.';
+            errorBox.classList.remove('hidden');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Save Branch';
+        }
+    });
+</script>
+
+<style>
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}

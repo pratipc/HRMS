@@ -1,0 +1,319 @@
+<!-- File Name: register.html -->
+<!-- Location: kpcb_hrms/app/templates/auth/register.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KPCB HRMS - Register</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            overflow-x: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        /* Animated Background Blobs */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 10s infinite alternate ease-in-out;
+            z-index: -1;
+        }
+
+        .blob-1 {
+            width: 400px;
+            height: 400px;
+            background: #818cf8;
+            top: -50px;
+            left: -50px;
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            width: 500px;
+            height: 500px;
+            background: #c084fc;
+            bottom: -100px;
+            right: -50px;
+            animation-delay: -5s;
+        }
+        
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: #38bdf8;
+            top: 40%;
+            left: 30%;
+            animation-duration: 15s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* Light Premium Glassmorphism */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-input:focus {
+            background: #ffffff;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+            outline: none;
+        }
+
+        .glass-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 1.25rem;
+            transition: color 0.3s ease;
+        }
+
+        .input-group:focus-within .input-icon {
+            color: #6366f1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Decoration -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- Main Register Card -->
+    <div class="glass-card rounded-3xl p-8 sm:p-10 w-full max-w-lg mx-4 relative z-10 animate-fade-in-up">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-blue-500 shadow-lg shadow-indigo-500/30 mb-4">
+                <i class="ph ph-user-plus text-3xl text-white"></i>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">Create Account</h1>
+            <p class="text-sm text-slate-500 mt-2 font-medium">Join KPCB HRMS. Fill in your details below.</p>
+        </div>
+
+        <form id="registerForm" class="space-y-5">
+            
+            <!-- Error/Success Message Alert Box -->
+            <div id="messageBox" class="hidden px-4 py-3 rounded-xl text-sm text-center flex items-center justify-center gap-2 border">
+                <i id="messageIcon" class="ph-fill text-lg"></i>
+                <span id="messageText"></span>
+            </div>
+
+            <!-- Name Fields (Grid) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div class="space-y-1">
+                    <label for="firstName" class="block text-xs font-semibold text-slate-700 ml-1">First Name</label>
+                    <div class="relative input-group">
+                        <i class="ph ph-identification-card input-icon"></i>
+                        <input type="text" id="firstName" name="firstName" required 
+                               class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                               placeholder="John">
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label for="lastName" class="block text-xs font-semibold text-slate-700 ml-1">Last Name</label>
+                    <div class="relative input-group">
+                        <i class="ph ph-identification-card input-icon"></i>
+                        <input type="text" id="lastName" name="lastName" required 
+                               class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                               placeholder="Doe">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Field -->
+            <div class="space-y-1">
+                <label for="email" class="block text-xs font-semibold text-slate-700 ml-1">Email Address</label>
+                <div class="relative input-group">
+                    <i class="ph ph-envelope-simple input-icon"></i>
+                    <input type="email" id="email" name="email" required 
+                           class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                           placeholder="john.doe@kpcb.com">
+                </div>
+            </div>
+
+            <!-- Username Field -->
+            <div class="space-y-1">
+                <label for="username" class="block text-xs font-semibold text-slate-700 ml-1">Username</label>
+                <div class="relative input-group">
+                    <i class="ph ph-user input-icon"></i>
+                    <input type="text" id="username" name="username" required 
+                           class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                           placeholder="Choose a username">
+                </div>
+            </div>
+
+            <!-- Password Fields (Grid) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div class="space-y-1">
+                    <label for="password" class="block text-xs font-semibold text-slate-700 ml-1">Password</label>
+                    <div class="relative input-group">
+                        <i class="ph ph-lock-key input-icon"></i>
+                        <input type="password" id="password" name="password" required 
+                               class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                               placeholder="••••••••">
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label for="confirmPassword" class="block text-xs font-semibold text-slate-700 ml-1">Confirm Password</label>
+                    <div class="relative input-group">
+                        <i class="ph ph-lock-key-fill input-icon"></i>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required 
+                               class="glass-input w-full pl-11 pr-4 py-2.5 rounded-xl block text-sm" 
+                               placeholder="••••••••">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn"
+                    class="w-full flex justify-center items-center gap-2 mt-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-500/30 text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 transform hover:-translate-y-0.5">
+                <span>Create Account</span>
+                <i class="ph-bold ph-arrow-right"></i>
+            </button>
+
+            <!-- Back to Login Link -->
+            <div class="text-center mt-4">
+                <p class="text-sm text-slate-600">
+                    Already have an account? 
+                    <a href="/login" class="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">Sign in here</a>
+                </p>
+            </div>
+        </form>
+    </div>
+
+    <!-- JavaScript logic -->
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+            
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            const messageBox = document.getElementById('messageBox');
+            const messageText = document.getElementById('messageText');
+            const messageIcon = document.getElementById('messageIcon');
+            const submitBtn = document.getElementById('submitBtn');
+
+            // Simple Password validation
+            if(password !== confirmPassword) {
+                showMessage('Passwords do not match.', 'error');
+                return;
+            }
+
+            // Reset UI state
+            messageBox.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin text-lg"></i> <span>Processing...</span>';
+            submitBtn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            try {
+                // Call the future Flask API we will create
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        firstName, lastName, email, username, password 
+                    })
+                    
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    submitBtn.innerHTML = '<i class="ph-bold ph-check-circle text-lg"></i> <span>Account Created!</span>';
+                    submitBtn.classList.replace('from-indigo-600', 'from-emerald-500');
+                    submitBtn.classList.replace('to-blue-600', 'to-teal-500');
+                    submitBtn.classList.replace('hover:from-indigo-700', 'hover:from-emerald-600');
+                    submitBtn.classList.replace('hover:to-blue-700', 'hover:to-teal-600');
+                    submitBtn.classList.replace('shadow-indigo-500/30', 'shadow-emerald-500/30');
+                    
+                    showMessage('Registration successful! Redirecting to login...', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    
+                } else {
+                    showMessage(data.error || 'Registration failed.', 'error');
+                    resetButton();
+                }
+            } catch (error) {
+                // Remove this timeout simulated success in production!
+                // Added here just so the UI succeeds since backend isn't mapped yet.
+                submitBtn.innerHTML = '<i class="ph-bold ph-check-circle text-lg"></i> <span>Account Created!</span>';
+                submitBtn.classList.replace('from-indigo-600', 'from-emerald-500');
+                submitBtn.classList.replace('to-blue-600', 'to-teal-500');
+                showMessage('Network error, but UI success simulation triggered.', 'success');
+                setTimeout(() => window.location.href = '/login', 2000);
+                
+                // Real Error handling:
+                // showMessage('Server connection failed. Please try again.', 'error');
+                // resetButton();
+            }
+
+            function showMessage(msg, type) {
+                messageBox.classList.remove('hidden', 'bg-red-50', 'border-red-200', 'text-red-600', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-600');
+                messageIcon.classList.remove('ph-warning-circle', 'ph-check-circle');
+                
+                if(type === 'error') {
+                    messageBox.classList.add('bg-red-50', 'border-red-200', 'text-red-600');
+                    messageIcon.classList.add('ph-warning-circle');
+                } else {
+                    messageBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-600');
+                    messageIcon.classList.add('ph-check-circle');
+                }
+                messageText.textContent = msg;
+            }
+
+            function resetButton() {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-80', 'cursor-not-allowed');
+                submitBtn.innerHTML = '<span>Create Account</span> <i class="ph-bold ph-arrow-right"></i>';
+            }
+        });
+    </script>
+</body>
+</html>

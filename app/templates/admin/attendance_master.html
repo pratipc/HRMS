@@ -1,0 +1,287 @@
+<!-- File Name: attendance_master.html -->
+<!-- Location: kpcb_hrms/app/templates/admin/attendance_master.html -->
+{% extends "layouts/admin_base.html" %}
+
+{% block header_title %}Time & Attendance Management{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">Time & Duty Master</h2>
+            <p class="text-sm text-slate-500">Ingest physical biometric punch logs and monitor monthly attendance states.</p>
+        </div>
+        
+        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto shrink-0">
+            <button onclick="setTab('register')" id="tabBtnRegister" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2">
+                <i class="ph-bold ph-calendar-check"></i> Monthly Register
+            </button>
+            <button onclick="setTab('biometric')" id="tabBtnBiometric" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
+                <i class="ph-bold ph-fingerprint"></i> Biometric Upload
+            </button>
+        </div>
+    </div>
+
+    <!-- TAB 1: Attendance Register -->
+    <div id="tabContentRegister" class="flex flex-col space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/40 p-4 rounded-xl border border-slate-200/50">
+            <div class="flex items-center gap-3">
+                <label class="text-sm font-bold text-slate-700">Select Month:</label>
+                <!-- Slicing the YYYY-MM-DD to YYYY-MM for the month picker -->
+                <input type="month" id="targetMonth" value="{{ today[:7] }}" onchange="loadMonthlyRoster()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold shadow-sm text-slate-700">
+            </div>
+            
+            <div class="relative w-full sm:w-64">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="rosterSearch" oninput="filterRoster()" placeholder="Search staff or code..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs shadow-sm">
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white relative min-h-[400px]">
+            <!-- Loading State -->
+            <div id="rosterLoading" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10 hidden">
+                <i class="ph-bold ph-spinner animate-spin text-2xl text-indigo-500 mr-2"></i>
+                <span class="text-sm font-semibold text-slate-600">Compiling monthly attendance ledger...</span>
+            </div>
+
+            <div class="overflow-x-auto max-w-full">
+                <!-- Using whitespace-nowrap and fixed widths to create the grid feel -->
+                <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
+                    <thead id="rosterTableHeader" class="bg-slate-50/70 text-slate-500 tracking-wider border-b border-slate-200 font-bold">
+                        <!-- Populated dynamically to show days 1-31 -->
+                    </thead>
+                    <tbody id="rosterTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Biometric Ingestion Terminal -->
+    <div id="tabContentBiometric" class="hidden flex flex-col items-center">
+        <div class="glass-panel p-8 rounded-2xl shadow-sm border border-slate-200 bg-white w-full max-w-xl">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
+                <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="ph-bold ph-fingerprint text-2xl"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-lg">Biometric Report Importer</h3>
+                    <p class="text-xs font-semibold text-slate-500">Upload the Monthly Attendance export directly from the physical machine.</p>
+                </div>
+            </div>
+
+            <form id="biometricForm" class="space-y-6">
+                <div id="biometricError" class="hidden p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 font-semibold leading-relaxed"></div>
+                <div id="biometricSuccess" class="hidden p-3 bg-emerald-50 text-emerald-600 text-xs rounded-lg border border-emerald-100 font-semibold"></div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                        <div>
+                            <p class="text-sm font-semibold text-indigo-900">Direct Smart Parsing Enabled</p>
+                            <p class="text-xs text-indigo-700 mt-1">You no longer need a manual template. Simply save your machine's <strong>Monthly_BasicReport.xls</strong> as a <strong>.CSV</strong> file and upload it below. The engine will automatically map the dates and employee codes.</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Select Machine Report (.csv) <span class="text-red-500">*</span></label>
+                        <input type="file" id="bioFile" accept=".csv" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end">
+                    <button type="submit" id="btnUploadBio" class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-colors shadow-indigo-500/20">
+                        <i class="ph-bold ph-upload"></i> Process Machine Logs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeTab = 'register';
+    let fullRosterData = [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadMonthlyRoster();
+    });
+
+    function setTab(tab) {
+        activeTab = tab;
+        const registerTab = document.getElementById('tabContentRegister');
+        const biometricTab = document.getElementById('tabContentBiometric');
+        const tabBtnRegister = document.getElementById('tabBtnRegister');
+        const tabBtnBiometric = document.getElementById('tabBtnBiometric');
+
+        if (tab === 'register') {
+            registerTab.classList.remove('hidden'); biometricTab.classList.add('hidden');
+            tabBtnRegister.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            tabBtnBiometric.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+            loadMonthlyRoster();
+        } else {
+            registerTab.classList.add('hidden'); biometricTab.classList.remove('hidden');
+            tabBtnBiometric.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            tabBtnRegister.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        }
+    }
+
+    // --- Tab 1: Monthly Register ---
+    async function loadMonthlyRoster() {
+        const monthVal = document.getElementById('targetMonth').value; // format: "YYYY-MM"
+        const loader = document.getElementById('rosterLoading');
+        loader.classList.remove('hidden');
+
+        try {
+            // Note: This API endpoint currently needs to be created in admin.py to return grouped monthly data
+            const res = await fetch(`/admin/api/attendance/monthly-register?month=${monthVal}`);
+            
+            if (res.ok) {
+                fullRosterData = await res.json();
+                renderMonthlyRoster(fullRosterData, monthVal);
+            } else {
+                // Graceful fallback display if the new backend API isn't ready yet
+                renderMonthlyRoster([], monthVal);
+            }
+        } catch (e) {
+            console.error(e);
+            renderMonthlyRoster([], monthVal);
+        } finally {
+            loader.classList.add('hidden');
+        }
+    }
+
+    function filterRoster() {
+        const term = document.getElementById('rosterSearch').value.toLowerCase();
+        const monthVal = document.getElementById('targetMonth').value;
+        const filtered = fullRosterData.filter(emp => 
+            (emp.EmployeeName || '').toLowerCase().includes(term) ||
+            (emp.EmployeeCode || '').toLowerCase().includes(term) ||
+            (emp.Designation || '').toLowerCase().includes(term)
+        );
+        renderMonthlyRoster(filtered, monthVal);
+    }
+
+    function renderMonthlyRoster(data, monthStr) {
+        const tbody = document.getElementById('rosterTableBody');
+        const thead = document.getElementById('rosterTableHeader');
+
+        if (!monthStr) return;
+        const [year, month] = monthStr.split('-');
+        
+        // Calculate exact days in the selected month
+        const daysInMonth = new Date(year, month, 0).getDate();
+
+        // 1. Build Dynamic Header
+        // The first column is "sticky left" to keep employee names visible while scrolling dates
+        let headerHtml = `<tr>
+            <th class="px-4 py-4 sticky left-0 bg-slate-50 z-10 shadow-[1px_0_0_0_#e2e8f0]">Employee Details</th>
+            <th class="px-4 py-4">Designation</th>`;
+
+        // Inject 1 to N days
+        for(let i = 1; i <= daysInMonth; i++) {
+            headerHtml += `<th class="px-1.5 py-4 text-center border-l border-slate-200/60 w-8 min-w-[2rem]">${i}</th>`;
+        }
+
+        // Tally columns
+        headerHtml += `
+            <th class="px-3 py-4 text-center border-l border-slate-300 text-emerald-600 bg-emerald-50/50" title="Total Present">P</th>
+            <th class="px-3 py-4 text-center text-rose-600 bg-rose-50/50" title="Total Absent">A</th>
+            <th class="px-3 py-4 text-center text-purple-600 bg-purple-50/50" title="Total Leave">L</th>
+            <th class="px-3 py-4 text-center text-slate-500 bg-slate-100/50" title="Total Weekly Offs / Holidays">W/H</th>
+        </tr>`;
+        
+        thead.innerHTML = headerHtml;
+
+        // Display empty state
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${daysInMonth + 6}" class="px-6 py-8 text-center text-slate-500">No monthly attendance records found. (Backend API sync required)</td></tr>`;
+            return;
+        }
+
+        // 2. Build Dynamic Rows
+        tbody.innerHTML = data.map(emp => {
+            let rowHtml = `<tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="px-4 py-3 sticky left-0 bg-white group-hover:bg-slate-50/50 z-10 shadow-[1px_0_0_0_#e2e8f0]">
+                    <div class="flex flex-col min-w-0">
+                        <span class="font-bold text-slate-800 text-sm truncate max-w-[150px]">${emp.EmployeeName}</span>
+                        <span class="text-[10px] font-mono font-bold text-slate-400">${emp.EmployeeCode}</span>
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-slate-600 font-semibold text-xs truncate max-w-[120px]">${emp.Designation}</td>`;
+
+            // Inject status markers for each day
+            for(let i = 1; i <= daysInMonth; i++) {
+                // Expecting backend to provide an Attendance object mapping day -> status. E.g. {"1": "Present", "2": "Absent"}
+                const status = emp.Attendance ? emp.Attendance[i.toString()] : null;
+                
+                let marker = '-';
+                let cls = 'text-slate-300 bg-transparent'; // Default Empty
+
+                if (status === 'Present') { 
+                    marker = 'P'; cls = 'text-emerald-700 font-bold bg-emerald-100'; 
+                } else if (status === 'Absent') { 
+                    marker = 'A'; cls = 'text-rose-700 font-bold bg-rose-100'; 
+                } else if (status === 'Leave') { 
+                    marker = 'L'; cls = 'text-purple-700 font-bold bg-purple-100'; 
+                } else if (status === 'Weekly Off' || status === 'Holiday') { 
+                    marker = status === 'Holiday' ? 'H' : 'W'; cls = 'text-slate-500 font-bold bg-slate-200'; 
+                }
+
+                rowHtml += `<td class="px-0.5 py-2 text-center border-l border-slate-100">
+                                <div class="w-6 h-6 mx-auto flex items-center justify-center text-[10px] rounded ${cls}">${marker}</div>
+                            </td>`;
+            }
+
+            // Inject Summary Totals provided by backend
+            rowHtml += `
+                <td class="px-3 py-3 text-center font-bold text-emerald-700 border-l border-slate-200 bg-emerald-50/30">${emp.TotalPresent || 0}</td>
+                <td class="px-3 py-3 text-center font-bold text-rose-700 bg-rose-50/30">${emp.TotalAbsent || 0}</td>
+                <td class="px-3 py-3 text-center font-bold text-purple-700 bg-purple-50/30">${emp.TotalLeave || 0}</td>
+                <td class="px-3 py-3 text-center font-bold text-slate-600 bg-slate-50/50">${emp.TotalOffs || 0}</td>
+            </tr>`;
+            
+            return rowHtml;
+        }).join('');
+    }
+
+    // --- Tab 2: Biometric Ingestion Terminal ---
+    document.getElementById('biometricForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnUploadBio');
+        const err = document.getElementById('biometricError');
+        const suc = document.getElementById('biometricSuccess');
+        const file = document.getElementById('bioFile').files[0];
+
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Parsing Logs...';
+        err.classList.add('hidden'); suc.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/admin/api/attendance/biometric-upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                suc.textContent = data.message;
+                suc.classList.remove('hidden');
+                document.getElementById('biometricForm').reset();
+                setTimeout(() => { setTab('register'); }, 1500);
+            } else {
+                err.textContent = data.error || 'Parsing failed.';
+                err.classList.remove('hidden');
+            }
+        } catch (e) {
+            err.textContent = 'Server connection failed.';
+            err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-upload"></i> Process Machine Logs';
+        }
+    });
+</script>
+{% endblock %}
