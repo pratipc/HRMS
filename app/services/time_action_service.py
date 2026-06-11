@@ -1,10 +1,13 @@
 # File Name: time_action_service.py
 # Location: kpcb_hrms/app/services/time_action_service.py
 
+import json
+import csv
+import re
 from datetime import datetime
 from typing import Dict, Any, List
 from app.repositories.interfaces import ITimeActionRepository
-import json
+
 class TimeActionService:
     def __init__(self, time_repo: ITimeActionRepository):
         self.time_repo = time_repo
@@ -16,11 +19,6 @@ class TimeActionService:
         Scans metadata, extracts headers, maps daily P/A statuses, and formats Employee IDs.
         Handles both raw CSVs and Pandas-parsed XLS DataFrames seamlessly.
         """
-        import csv
-        import re
-        import json
-        from datetime import datetime
-
         rows = []
         filename = file.filename.lower()
         
@@ -29,7 +27,6 @@ class TimeActionService:
             try:
                 import pandas as pd
                 # Read Excel forcing all columns to be strings.
-                # NOTE: Pandas may convert date cells to 'YYYY-MM-DD HH:MM:SS' strings.
                 df = pd.read_excel(file, header=None, dtype=str).fillna('')
                 rows = df.values.tolist()
             except Exception:
@@ -92,10 +89,8 @@ class TimeActionService:
         if header_row_idx == -1 or not day_columns:
             raise ValueError("Could not detect the date headers (e.g., '01-May' or 'YYYY-MM-DD') in the uploaded file.")
 
-        # 3. Dynamically locate the 'Emp Code' column (Pandas and CSV shift columns differently)
+        # 3. Dynamically locate the 'Emp Code' column
         emp_code_col_idx = -1
-        
-        # Scan the rows around the header for the Employee Code label
         for i in range(max(0, header_row_idx - 3), header_row_idx + 2):
             for col_idx, cell in enumerate(rows[i]):
                 clean_val = re.sub(r'[^a-z]', '', str(cell).strip().lower())
@@ -105,31 +100,29 @@ class TimeActionService:
             if emp_code_col_idx != -1:
                 break
                 
-        # Fallback if label is missing
         if emp_code_col_idx == -1:
             emp_code_col_idx = 1 if filename.endswith(('.xls', '.xlsx')) else 2
 
         # 4. Parse Employee Rows (Data Matrix)
         records = []
-        
         for row in rows[header_row_idx + 1:]:
             if len(row) < 5:
                 continue
                 
-            # Safely grab the employee code
             emp_code_raw = ""
             if emp_code_col_idx < len(row):
                 emp_code_raw = str(row[emp_code_col_idx]).strip()
                 
-            # Clean up Pandas float conversion (e.g., '2.0' -> '2')
-            if emp_code_raw.endswith('.0'):
-                emp_code_raw = emp_code_raw[:-2]
-            
-            # Skip empty rows or summary rows
-            if not emp_code_raw or not emp_code_raw.isdigit():
+            if not emp_code_raw:
+                continue
+
+            # Robust Employee Code Resolution (handles numeric and formatted codes)
+            numeric_match = re.search(r'(\d+)', emp_code_raw)
+            if not numeric_match:
                 continue
                 
-            emp_code = f"KPCB-{int(emp_code_raw):03d}"
+            emp_num = int(numeric_match.group(1))
+            emp_code = f"KPCB-{emp_num:03d}"
             
             # Extract daily statuses mapped precisely to the correct index!
             for col_idx, date_str in day_columns.items():
@@ -158,6 +151,53 @@ class TimeActionService:
         self.time_repo.ingest_biometric_data(json_payload)
         
         return len(records), []
+
+    def process_manual_upload(self, file) -> tuple:
+        """
+        Processes a simple manual attendance CSV format.
+        Expected format: EmployeeCode, PunchDate (YYYY-MM-DD), Status
+        """
+        content = file.stream.read().decode('utf-8-sig', errors='replace').splitlines()
+        reader = csv.DictReader(content)
+        
+        records = []
+        errors = []
+        
+        for i, row in enumerate(reader):
+            emp_code_raw = row.get('EmployeeCode', '').strip()
+            punch_date = row.get('PunchDate', '').strip()
+            status = row.get('Status', '').strip().capitalize()
+            
+            if not emp_code_raw or not punch_date or not status:
+                errors.append(f"Row {i+2}: Missing required fields.")
+                continue
+
+            # Robust Employee Code Resolution
+            numeric_match = re.search(r'(\d+)', emp_code_raw)
+            if not numeric_match:
+                errors.append(f"Row {i+2}: Invalid Employee Code format '{emp_code_raw}'.")
+                continue
+            
+            emp_num = int(numeric_match.group(1))
+            emp_code = f"KPCB-{emp_num:03d}"
+                
+            if status not in ['Present', 'Absent', 'Half-Day', 'Leave', 'Weekly off', 'Weekly Off', 'Holiday']:
+                errors.append(f"Row {i+2}: Invalid status '{status}'.")
+                continue
+                
+            records.append({
+                "EmployeeCode": emp_code,
+                "PunchDate": punch_date,
+                "Status": 'Weekly Off' if status == 'Weekly off' else status
+            })
+            
+        if not records:
+            raise ValueError("No valid attendance records found in the manual upload file.")
+            
+        json_payload = json.dumps(records)
+        self.time_repo.ingest_biometric_data(json_payload)
+        
+        return len(records), errors
 
     def fetch_monthly_register(self, month_str: str) -> List[Dict[str, Any]]:
         """
@@ -237,6 +277,10 @@ class TimeActionService:
             if 'already punched in' in str(e):
                 raise ValueError("You have already punched in for today.")
             raise RuntimeError(f"Database error during punch in: {str(e)}")
+
+    def is_attendance_uploaded(self, year: int, month: int) -> bool:
+        """Determines if any attendance records exist for the specified period."""
+        return self.time_repo.check_attendance_status(year, month)
 
     # ---------------------------------------------------------
     # LEAVE APPLICATION & INQUIRY LOGIC
@@ -344,7 +388,7 @@ class TimeActionService:
                 
             type_data['QtyPerYear'] = qty
             type_data['MaxCarryForward'] = max_cf
-            return self.time_repo.add_add_leave_type(type_data)
+            return self.time_repo.add_leave_type(type_data)
         except ValueError as ve:
             raise ve
         except Exception as e:

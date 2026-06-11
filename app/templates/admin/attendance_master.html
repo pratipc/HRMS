@@ -17,8 +17,8 @@
             <button onclick="setTab('register')" id="tabBtnRegister" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2">
                 <i class="ph-bold ph-calendar-check"></i> Monthly Register
             </button>
-            <button onclick="setTab('biometric')" id="tabBtnBiometric" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
-                <i class="ph-bold ph-fingerprint"></i> Biometric Upload
+            <button onclick="setTab('ingestion')" id="tabBtnIngestion" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
+                <i class="ph-bold ph-upload"></i> Data Ingestion
             </button>
         </div>
     </div>
@@ -35,6 +35,14 @@
             <div class="relative w-full sm:w-64">
                 <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                 <input type="text" id="rosterSearch" oninput="filterRoster()" placeholder="Search staff or code..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs shadow-sm">
+            </div>
+        </div>
+
+        <div id="attendanceMissingWarning" class="hidden flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div class="text-amber-500 mt-0.5"><i class="ph-fill ph-warning-circle text-xl"></i></div>
+            <div>
+                <h4 class="text-sm font-bold text-amber-800">Attendance Data Pending</h4>
+                <p class="text-xs text-amber-700 mt-1 font-medium">Remarks: The biometric attendance sheet for this month has not been uploaded yet. Please upload the monthly basic report to correctly calculate payroll compensation for this period.</p>
             </div>
         </div>
 
@@ -97,6 +105,39 @@
                 </div>
             </form>
         </div>
+
+        <div class="glass-panel p-8 rounded-2xl shadow-sm border border-slate-200 bg-white w-full max-w-xl mt-6">
+            <div class="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <i class="ph-bold ph-file-csv text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Manual Roster Upload</h3>
+                        <p class="text-xs font-semibold text-slate-500">Upload a standardized CSV file for manual attendance.</p>
+                    </div>
+                </div>
+                <a href="/admin/api/attendance/manual-template" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                    <i class="ph-bold ph-download-simple"></i> Download Template
+                </a>
+            </div>
+
+            <form id="manualForm" class="space-y-6">
+                <div id="manualError" class="hidden p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100 font-semibold leading-relaxed"></div>
+                <div id="manualSuccess" class="hidden p-3 bg-emerald-50 text-emerald-600 text-xs rounded-lg border border-emerald-100 font-semibold"></div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Select Filled Template (.csv) <span class="text-red-500">*</span></label>
+                    <input type="file" id="manualFile" accept=".csv" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end">
+                    <button type="submit" id="btnUploadManual" class="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-emerald-700 transition-colors shadow-emerald-500/20">
+                        <i class="ph-bold ph-upload"></i> Upload Manual Roster
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -134,18 +175,30 @@
         loader.classList.remove('hidden');
 
         try {
-            // Note: This API endpoint currently needs to be created in admin.py to return grouped monthly data
-            const res = await fetch(`/admin/api/attendance/monthly-register?month=${monthVal}`);
+            const timestamp = new Date().getTime();
+            const res = await fetch(`/admin/api/attendance/monthly-register?month=${monthVal}&_t=${timestamp}`);
             
             if (res.ok) {
-                fullRosterData = await res.json();
+                const data = await res.json();
+                fullRosterData = data.register || [];
+                
+                const warningBanner = document.getElementById('attendanceMissingWarning');
+                if (!data.attendance_uploaded) {
+                    warningBanner.classList.remove('hidden');
+                } else {
+                    warningBanner.classList.add('hidden');
+                }
+                
                 renderMonthlyRoster(fullRosterData, monthVal);
             } else {
-                // Graceful fallback display if the new backend API isn't ready yet
+                const warningBanner = document.getElementById('attendanceMissingWarning');
+                warningBanner.classList.remove('hidden');
                 renderMonthlyRoster([], monthVal);
             }
         } catch (e) {
             console.error(e);
+            const warningBanner = document.getElementById('attendanceMissingWarning');
+            warningBanner.classList.remove('hidden');
             renderMonthlyRoster([], monthVal);
         } finally {
             loader.classList.add('hidden');
@@ -196,7 +249,7 @@
 
         // Display empty state
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${daysInMonth + 6}" class="px-6 py-8 text-center text-slate-500">No monthly attendance records found. (Backend API sync required)</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${daysInMonth + 6}" class="px-6 py-8 text-center text-slate-500">No monthly attendance records found. Please upload the biometric sheet.</td></tr>`;
             return;
         }
 
@@ -281,6 +334,47 @@
             err.classList.remove('hidden');
         } finally {
             btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-upload"></i> Process Machine Logs';
+        }
+    });
+
+    // --- Tab 3: Manual Ingestion Terminal ---
+    document.getElementById('manualForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnUploadManual');
+        const err = document.getElementById('manualError');
+        const suc = document.getElementById('manualSuccess');
+        const file = document.getElementById('manualFile').files[0];
+
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Parsing...';
+        err.classList.add('hidden'); suc.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/admin/api/attendance/manual-upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok || res.status === 207) {
+                suc.textContent = data.message;
+                suc.classList.remove('hidden');
+                document.getElementById('manualForm').reset();
+                setTimeout(() => { setTab('register'); }, 1500);
+            } else {
+                err.textContent = data.error || 'Upload failed.';
+                if (data.details && data.details.length > 0) {
+                    err.innerHTML += '<br>' + data.details.join('<br>');
+                }
+                err.classList.remove('hidden');
+            }
+        } catch (e) {
+            err.textContent = 'Server connection failed.';
+            err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-upload"></i> Upload Manual Roster';
         }
     });
 </script>

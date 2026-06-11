@@ -82,6 +82,11 @@ class ITimeActionRepository(ABC):
         pass
 
     @abstractmethod
+    def check_attendance_status(self, year: int, month: int) -> bool:
+        """Checks if attendance has been uploaded for a specific month and year."""
+        pass
+
+    @abstractmethod
     def get_monthly_attendance_register(self, month_str: str) -> List[Dict[str, Any]]: 
         """Fetches flat monthly attendance records for Python aggregation."""
         pass
@@ -173,4 +178,24 @@ class IPayrollRepository(ABC):
     @abstractmethod
     def update_global_allowances(self, da: float, hra: float, ma: float) -> None: 
         """Overwrites global banking allowances, instantly triggering ledger recalculations."""
+        pass
+
+    @abstractmethod
+    def get_saturday_allowance_rates(self) -> List[Dict[str, Any]]:
+        """Retrieves designation-based Saturday allowance rates."""
+        pass
+
+    @abstractmethod
+    def update_saturday_allowance_rate(self, designation: str, rate: float, rate_id: int = 0, old_designation: str = None) -> None:
+        """Updates a specific designation's Saturday allowance rate."""
+        pass
+
+    @abstractmethod
+    def get_payroll_status(self, year: int, month: int) -> Dict[str, Any]:
+        """Checks if attendance is uploaded and if payroll is finalized for the month."""
+        pass
+
+    @abstractmethod
+    def finalize_monthly_payroll(self, year: int, month: int, processed_by: str) -> Dict[str, Any]:
+        """Locks the payroll for the specified month."""
         pass

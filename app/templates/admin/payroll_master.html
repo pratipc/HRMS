@@ -18,38 +18,61 @@
                 <i class="ph-bold ph-users"></i> Employee Ledger
             </button>
             <button onclick="setTab('config')" id="tabBtnConfig" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
-                <i class="ph-bold ph-sliders"></i> Global Allowances
+                <i class="ph-bold ph-sliders"></i> Monthly Allowances
+            </button>
+            <button onclick="setTab('saturday')" id="tabBtnSaturday" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
+                <i class="ph-bold ph-calendar-check"></i> Saturday Allowance
             </button>
         </div>
     </div>
 
     <!-- TAB 1: Individual Employee Salary Ledger -->
     <div id="tabContentSalaries" class="flex flex-col space-y-4">
-        <div class="flex justify-between items-center gap-4 flex-wrap">
-            <div class="relative w-full md:w-80">
-                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
-                <input type="text" id="ledgerSearch" oninput="filterLedger()" placeholder="Search employee..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex flex-col gap-1">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Payroll Month</label>
+                <input type="month" id="payrollMonth" onchange="checkPayrollStatus()" class="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700 outline-none">
             </div>
-            <div class="flex items-center gap-2 w-full md:w-auto">
-                <label for="payrollMonth" class="text-sm font-bold text-slate-600">Payroll Month:</label>
-                <input type="month" id="payrollMonth" onchange="loadSalaries()" class="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm text-slate-700 font-semibold cursor-pointer">
+
+            <div id="statusContainer" class="flex flex-wrap items-center gap-4">
+                 <div id="payrollStatusBadge" class="hidden px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border"></div>
+                 
+                 <button id="btnViewPreview" onclick="loadSalaries()" class="hidden px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-eye"></i> View Preview
+                 </button>
+
+                 <button id="btnFinalizePayroll" onclick="openFinalizeModal()" class="hidden px-6 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-emerald-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-lock-key"></i> Finalize Calculation
+                 </button>
             </div>
         </div>
 
-        <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white relative min-h-[400px]">
-            <div id="salariesLoadingState" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                <i class="ph-bold ph-spinner animate-spin text-2xl text-indigo-500 mr-2"></i>
-                <span class="text-sm font-semibold text-slate-600">Loading payroll ledger...</span>
+        <!-- Ledger Table Section -->
+        <div id="ledgerSection" class="hidden flex flex-col space-y-4">
+            <div class="flex justify-between items-center gap-4 flex-wrap">
+                <div class="relative w-full md:w-80">
+                    <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="ledgerSearch" oninput="filterLedger()" placeholder="Search employee..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm">
+                </div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
+            <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white relative min-h-[400px]">
+                <div id="salariesLoadingState" class="absolute inset-0 hidden flex items-center justify-center bg-white/80 z-10">
+                    <div class="flex flex-col items-center gap-2">
+                        <i class="ph-bold ph-spinner animate-spin text-3xl text-indigo-500"></i>
+                        <span class="text-sm font-semibold text-slate-600">Calculating preview...</span>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
                         <thead class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500">
                             <tr>
                                 <th class="px-5 py-4 font-bold text-left rounded-tl-xl">Employee</th>
-                                <th class="px-4 py-4 font-bold text-left">Designation</th>
-                                <th class="px-4 py-4 font-bold text-right">Base Structure</th>
+                                <th class="px-4 py-4 font-bold text-right">Basic Pay</th>
+                                <th class="px-4 py-4 font-bold text-right">DA</th>
+                                <th class="px-4 py-4 font-bold text-right">HRA</th>
+                                <th class="px-4 py-4 font-bold text-right">MA</th>
                                 <th class="px-4 py-4 font-bold text-right text-indigo-500">Sat. Allowance</th>
                                 <th class="px-4 py-4 font-bold text-right text-amber-500">Cash Duty</th>
                                 <th class="px-5 py-4 font-bold text-right text-emerald-600">Final Net Pay</th>
@@ -59,10 +82,22 @@
                         <tbody id="salariesTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
                             <!-- Populated via JS -->
                         </tbody>
-                        </table>
-                        </div>
-                        </div>
-                        </div>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Initial Placeholder -->
+        <div id="initialPlaceholder" class="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <div id="placeholderContent" class="flex flex-col items-center">
+                <div class="h-20 w-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="ph-duotone ph-calendar-blank text-4xl text-slate-300"></i>
+                </div>
+                <h3 class="font-bold text-slate-500">Select a month to begin payroll processing</h3>
+                <p class="text-sm text-slate-400 mt-1">Calculations will be available once biometric attendance is uploaded.</p>
+            </div>
+        </div>
+    </div>
 
     <!-- TAB 2: Global Allowance Configuration -->
     <div id="tabContentConfig" class="hidden flex flex-col items-center">
@@ -72,7 +107,7 @@
                     <i class="ph-fill ph-percent text-2xl"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-slate-800 text-lg">Global Allowance Rates</h3>
+                    <h3 class="font-bold text-slate-800 text-lg">Monthly Allowance Rates</h3>
                     <p class="text-xs font-semibold text-slate-500">Updating these overrides instantly recalculates Gross Pay for all employees.</p>
                 </div>
             </div>
@@ -81,31 +116,28 @@
                 <div id="configMessage" class="hidden px-4 py-3 rounded-xl text-sm font-semibold text-center border"></div>
                 
                 <div class="space-y-4">
-                    <!-- DA config -->
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">Dearness Allowance (DA)</h4>
                             <p class="text-xs text-slate-500">Calculated as a % of Basic Pay.</p>
                         </div>
                         <div class="relative w-32">
-                            <input type="number" step="0.01" id="configDA" required class="w-full pr-8 pl-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700">
+                            <input type="number" step="0.01" id="configDA" required class="w-full pr-8 pl-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700 outline-none">
                             <i class="ph-bold ph-percent absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                         </div>
                     </div>
                     
-                    <!-- HRA config -->
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">House Rent Allowance (HRA)</h4>
                             <p class="text-xs text-slate-500">Calculated as a % of Basic Pay.</p>
                         </div>
                         <div class="relative w-32">
-                            <input type="number" step="0.01" id="configHRA" required class="w-full pr-8 pl-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700">
+                            <input type="number" step="0.01" id="configHRA" required class="w-full pr-8 pl-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700 outline-none">
                             <i class="ph-bold ph-percent absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                         </div>
                     </div>
                     
-                    <!-- MA config -->
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">Medical Allowance (MA)</h4>
@@ -113,7 +145,7 @@
                         </div>
                         <div class="relative w-32">
                             <i class="ph-bold ph-currency-inr absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input type="number" step="1" id="configMA" required class="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700">
+                            <input type="number" step="1" id="configMA" required class="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-right font-bold text-slate-700 outline-none">
                         </div>
                     </div>
                 </div>
@@ -124,6 +156,62 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- TAB 3: Saturday Allowance Configuration -->
+    <div id="tabContentSaturday" class="hidden flex flex-col items-center">
+        <div class="glass-panel p-8 rounded-2xl shadow-sm border border-slate-200 bg-white w-full max-w-3xl">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                        <i class="ph-fill ph-calendar-star text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Saturday Allowance Rates</h3>
+                        <p class="text-xs font-semibold text-slate-500">Designation-based monetary rates for Saturday duty.</p>
+                    </div>
+                </div>
+                <button onclick="openSaturdayModal('', 0, true)" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-plus"></i> Add Designation
+                </button>
+            </div>
+
+            <div id="saturdayMessage" class="hidden mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border"></div>
+
+            <div class="overflow-hidden border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 font-bold">Designation</th>
+                            <th class="px-6 py-4 font-bold text-right">Rate (₹ / Saturday)</th>
+                            <th class="px-6 py-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saturdayRatesTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Finalize Confirmation Modal -->
+<div id="finalizeModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/60 backdrop-blur-md">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-slate-100">
+        <div class="p-8 text-center">
+            <div class="h-20 w-20 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500">
+                <i class="ph-bold ph-warning text-4xl"></i>
+            </div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Lock Monthly Payroll?</h3>
+            <p class="text-slate-500 text-sm font-medium leading-relaxed">
+                You are about to finalize payroll for <span id="finalizeMonthName" class="font-bold text-indigo-600"></span>. This will lock calculations and prevent further adjustments for this period.
+            </p>
+        </div>
+        <div class="flex border-t border-slate-100">
+            <button onclick="closeFinalizeModal()" class="flex-1 px-6 py-4 text-sm font-bold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">Cancel</button>
+            <button onclick="executeFinalization()" id="btnConfirmFinalize" class="flex-1 px-6 py-4 text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition-colors">Yes, Finalize Now</button>
         </div>
     </div>
 </div>
@@ -162,52 +250,180 @@
     </div>
 </div>
 
+<!-- Edit Saturday Rate Modal -->
+<div id="editSaturdayModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-calendar-check text-indigo-600"></i> Adjust Saturday Rate
+            </h3>
+            <button onclick="closeSaturdayModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="saturdayRateForm" class="p-6">
+            <input type="hidden" id="editSatRateID" value="0">
+            <input type="hidden" id="editSatOldDesignation" value="">
+            <div id="saturdayError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Designation</label>
+                    <input type="text" id="editSatDesignation" class="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-indigo-600 uppercase tracking-wide mb-1">New Saturday Rate (₹)</label>
+                    <input type="number" step="0.01" min="0" id="editSatRate" required class="w-full px-4 py-3 bg-indigo-50/50 border border-indigo-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-base font-black text-indigo-900 shadow-inner">
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeSaturdayModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="btnSaveSatRate" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-md">Update Rate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     let activeTab = 'salaries';
     let fullLedgerData = [];
     const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
 
     document.addEventListener("DOMContentLoaded", () => {
-        loadSalaries();
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('payrollMonth').value = `${year}-${month}`;
+        checkPayrollStatus();
     });
 
     function setTab(tab) {
         const tabSalaries = document.getElementById('tabContentSalaries');
         const tabConfig = document.getElementById('tabContentConfig');
+        const tabSaturday = document.getElementById('tabContentSaturday');
+        
         const btnSalaries = document.getElementById('tabBtnSalaries');
         const btnConfig = document.getElementById('tabBtnConfig');
+        const btnSaturday = document.getElementById('tabBtnSaturday');
+
+        tabSalaries.classList.add('hidden');
+        tabConfig.classList.add('hidden');
+        tabSaturday.classList.add('hidden');
+        
+        btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
 
         if (tab === 'salaries') {
-            tabSalaries.classList.remove('hidden'); tabConfig.classList.add('hidden');
+            tabSalaries.classList.remove('hidden');
             btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
-            btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
-            loadSalaries();
-        } else {
-            tabSalaries.classList.add('hidden'); tabConfig.classList.remove('hidden');
+            checkPayrollStatus();
+        } else if (tab === 'config') {
+            tabConfig.classList.remove('hidden');
             btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
-            btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
             loadConfig();
+        } else if (tab === 'saturday') {
+            tabSaturday.classList.remove('hidden');
+            btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            loadSaturdayRates();
+        }
+    }
+
+    // --- WORKFLOW LOGIC ---
+    async function checkPayrollStatus() {
+        const monthVal = document.getElementById('payrollMonth').value;
+        if (!monthVal) return;
+        const [year, month] = monthVal.split('-');
+
+        const placeholder = document.getElementById('initialPlaceholder');
+        const placeholderContent = document.getElementById('placeholderContent');
+        const ledgerSection = document.getElementById('ledgerSection');
+        const btnViewPreview = document.getElementById('btnViewPreview');
+        const btnFinalizePayroll = document.getElementById('btnFinalizePayroll');
+        const badge = document.getElementById('payrollStatusBadge');
+
+        // Reset UI
+        placeholder.classList.remove('hidden');
+        ledgerSection.classList.add('hidden');
+        btnViewPreview.classList.add('hidden');
+        btnFinalizePayroll.classList.add('hidden');
+        badge.classList.add('hidden');
+
+        try {
+            const res = await fetch(`/admin/api/payroll/status?year=${year}&month=${month}`);
+            if (!res.ok) throw new Error('Network response was not ok');
+            const status = await res.json();
+
+            if (status.AttendanceUploaded) {
+                placeholderContent.innerHTML = `
+                    <div class="h-20 w-20 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
+                        <i class="ph-duotone ph-check-circle text-4xl text-indigo-300"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800">Attendance Data Available</h3>
+                    <p class="text-sm text-slate-500 mt-1">You can now preview and finalize the payroll ledger.</p>
+                `;
+                btnViewPreview.classList.remove('hidden');
+
+                if (status.PayrollFinalized) {
+                    badge.innerHTML = '<i class="ph-bold ph-check-circle"></i> Payroll Finalized';
+                    badge.className = 'px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border bg-emerald-50 text-emerald-700 border-emerald-200';
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.innerHTML = '<i class="ph-bold ph-info"></i> Ready for Review';
+                    badge.className = 'px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border bg-amber-50 text-amber-700 border-amber-200';
+                    badge.classList.remove('hidden');
+                }
+            } else {
+                badge.innerHTML = '<i class="ph-bold ph-warning-circle"></i> Attendance Missing';
+                badge.className = 'px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border bg-red-50 text-red-700 border-red-200';
+                badge.classList.remove('hidden');
+                placeholderContent.innerHTML = `
+                    <div class="h-20 w-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                        <i class="ph-duotone ph-warning text-4xl text-red-300"></i>
+                    </div>
+                    <h3 class="font-bold text-red-500">Attendance Data Pending</h3>
+                    <p class="text-sm text-red-400 mt-1 text-center px-6">Calculations cannot be performed until the biometric sheet is uploaded for this month.</p>
+                `;
+            }
+        } catch (e) {
+            console.error('Error checking payroll status:', e);
         }
     }
 
     // --- TAB 1: LEDGER LOGIC ---
     async function loadSalaries() {
-        document.getElementById('salariesLoadingState').classList.remove('hidden');
+        const monthVal = document.getElementById('payrollMonth').value;
+        if (!monthVal) return;
+        const [year, month] = monthVal.split('-');
+
+        const loading = document.getElementById('salariesLoadingState');
+        const ledgerSection = document.getElementById('ledgerSection');
+        const placeholder = document.getElementById('initialPlaceholder');
+
+        loading.classList.remove('hidden');
+        ledgerSection.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        
         try {
-            let url = '/admin/api/payroll/salaries';
-            const monthInput = document.getElementById('payrollMonth').value;
-            if (monthInput) {
-                const [year, month] = monthInput.split('-');
-                url += `?year=${year}&month=${month}`;
-            }
-            
-            const res = await fetch(url);
-            fullLedgerData = await res.json();
+            const res = await fetch(`/admin/api/payroll/salaries?year=${year}&month=${month}`);
+            if (!res.ok) throw new Error('Network response was not ok');
+            const data = await res.json();
+            fullLedgerData = data.ledger || [];
             renderSalaries(fullLedgerData);
+
+            // Check if finalization button should appear
+            const statusRes = await fetch(`/admin/api/payroll/status?year=${year}&month=${month}`);
+            const status = await statusRes.json();
+            if (status.AttendanceUploaded && !status.PayrollFinalized) {
+                document.getElementById('btnFinalizePayroll').classList.remove('hidden');
+            } else {
+                document.getElementById('btnFinalizePayroll').classList.add('hidden');
+            }
         } catch (err) {
-            console.error(err);
+            console.error('Error loading salaries:', err);
         } finally {
-            document.getElementById('salariesLoadingState').classList.add('hidden');
+            loading.classList.add('hidden');
         }
     }
 
@@ -224,7 +440,7 @@
     function renderSalaries(data) {
         const tbody = document.getElementById('salariesTableBody');
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-slate-500">No records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-500">No records found.</td></tr>`;
             return;
         }
 
@@ -236,26 +452,23 @@
                         <span class="text-[10px] font-mono font-bold text-slate-400">${emp.EmployeeCode}</span>
                     </div>
                 </td>
-                <td class="px-4 py-4 text-xs font-semibold text-slate-600">${emp.Designation}</td>
                 
-                <td class="px-4 py-4 text-right whitespace-nowrap">
-                    <div class="flex flex-col items-end">
-                        <span class="font-bold text-slate-700">${formatter.format(emp.StandardGross || 0)}</span>
-                        <span class="text-[9px] text-slate-400 font-medium">Base: ${formatter.format(emp.BasicPay || 0)}</span>
-                    </div>
-                </td>
+                <td class="px-4 py-4 text-right font-bold text-slate-700">${formatter.format(emp.BasicPay || 0)}</td>
+                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.DA || 0)}</td>
+                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.HRA || 0)}</td>
+                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.MA || 0)}</td>
                 
                 <td class="px-4 py-4 text-right whitespace-nowrap">
                     <div class="flex flex-col items-end">
                         <span class="font-bold text-indigo-600">${formatter.format(emp.SaturdayAllowance || 0)}</span>
-                        <span class="text-[9px] text-indigo-400 font-medium">${emp.EligibleSaturdays || 0} Eligible Days</span>
+                        <span class="text-[9px] text-indigo-400 font-medium">${emp.EligibleSaturdays || 0} Days</span>
                     </div>
                 </td>
 
                 <td class="px-4 py-4 text-right whitespace-nowrap">
                     <div class="flex flex-col items-end">
                         <span class="font-bold text-amber-600">${formatter.format(emp.CashCounterAllowance || 0)}</span>
-                        <span class="text-[9px] text-amber-500 font-medium">${emp.CashCounterDays || 0} Assigned Days</span>
+                        <span class="text-[9px] text-amber-500 font-medium">${emp.CashCounterDays || 0} Days</span>
                     </div>
                 </td>
                 
@@ -265,7 +478,7 @@
                     </span>
                 </td>
                 <td class="px-4 py-4 text-center">
-                    <button onclick="openBasicModal(${emp.EmployeeID}, '${emp.EmployeeName}', ${emp.BasicPay})" 
+                    <button onclick="openBasicModal(${emp.EmployeeID}, '${emp.EmployeeName.replace(/'/g, "\\'")}', ${emp.BasicPay})" 
                             class="px-3 py-1.5 bg-white border border-slate-200 text-indigo-600 text-xs font-bold rounded hover:bg-indigo-50 transition-colors shadow-sm">
                         Edit
                     </button>
@@ -274,8 +487,47 @@
         `).join('');
     }
 
+    // --- FINALIZATION LOGIC ---
+    function openFinalizeModal() {
+        const monthVal = document.getElementById('payrollMonth').value;
+        const d = new Date(monthVal + '-01');
+        const monthName = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+        document.getElementById('finalizeMonthName').textContent = monthName;
+        const modal = document.getElementById('finalizeModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeFinalizeModal() {
+        const modal = document.getElementById('finalizeModal');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+    }
+    async function executeFinalization() {
+        const btn = document.getElementById('btnConfirmFinalize');
+        const monthVal = document.getElementById('payrollMonth').value;
+        const [year, month] = monthVal.split('-');
 
-    // Modal Operations
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Finalizing...';
+
+        try {
+            const res = await fetch("/admin/api/payroll/finalize", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ year: parseInt(year), month: parseInt(month) })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                closeFinalizeModal();
+                alert(data.message);
+                checkPayrollStatus();
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            alert('A server error occurred.');
+        } finally {
+            btn.disabled = false; btn.innerHTML = 'Yes, Finalize Now';
+        }
+    }
+
     const basicModal = document.getElementById('editBasicModal');
     function openBasicModal(id, name, currentBasic) {
         document.getElementById('editEmpId').value = id;
@@ -306,7 +558,7 @@
             });
             if (res.ok) {
                 closeBasicModal();
-                loadSalaries(); // Instant UI Recalculation
+                loadSalaries();
             } else {
                 const data = await res.json();
                 err.textContent = data.error; err.classList.remove('hidden');
@@ -321,7 +573,7 @@
     // --- TAB 2: CONFIG LOGIC ---
     async function loadConfig() {
         try {
-            const res = await fetch('/admin/api/payroll/config');
+            const res = await fetch("/admin/api/payroll/config");
             const data = await res.json();
             document.getElementById('configDA').value = data.DA || 18.00;
             document.getElementById('configHRA').value = data.HRA || 12.00;
@@ -338,7 +590,7 @@
         msg.classList.add('hidden');
 
         try {
-            const res = await fetch('/admin/api/payroll/config', {
+            const res = await fetch("/admin/api/payroll/config", {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -357,6 +609,101 @@
             console.error(e);
         } finally {
             btn.disabled = false; btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Global Rates';
+        }
+    });
+
+    // --- TAB 3: SATURDAY RATES LOGIC ---
+    async function loadSaturdayRates() {
+        const tbody = document.getElementById('saturdayRatesTableBody');
+        tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-slate-500"><i class="ph-bold ph-spinner animate-spin mr-2"></i>Loading rates...</td></tr>`;
+        
+        try {
+            const res = await fetch("/admin/api/payroll/saturday-rates");
+            const data = await res.json();
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-slate-500">No rates defined.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(rate => {
+                const desig = rate.designation || rate.Designation || '';
+                const amount = rate.rate || rate.Rate || 0;
+                const rid = rate.rate_id || rate.RateID || 0;
+                
+                return `
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="px-6 py-4 font-bold text-slate-800">${desig}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-indigo-600 text-base">${formatter.format(amount)}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="openSaturdayModal('${desig.replace(/'/g, "\\'")}', ${amount}, ${rid})" 
+                                class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit Rate">
+                            <i class="ph-bold ph-pencil-simple text-lg"></i>
+                        </button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        } catch(e) { 
+            console.error(e);
+            tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-red-500">Failed to load rates.</td></tr>`;
+        }
+    }
+
+    const satModal = document.getElementById('editSaturdayModal');
+    function openSaturdayModal(designation, rate, rateId = 0) {
+        document.getElementById('editSatRateID').value = rateId;
+        document.getElementById('editSatOldDesignation').value = designation;
+        const input = document.getElementById('editSatDesignation');
+        input.value = designation;
+        input.placeholder = "Enter Designation Name...";
+        document.getElementById('editSatRate').value = rate;
+        satModal.classList.remove('hidden'); satModal.classList.add('flex');
+    }
+    function closeSaturdayModal() {
+        satModal.classList.add('hidden'); satModal.classList.remove('flex');
+        document.getElementById('saturdayError').classList.add('hidden');
+    }
+
+    document.getElementById('saturdayRateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveSatRate');
+        const err = document.getElementById('saturdayError');
+        const msg = document.getElementById('saturdayMessage');
+        const desig = document.getElementById('editSatDesignation').value;
+        const oldDesig = document.getElementById('editSatOldDesignation').value;
+        const rate = document.getElementById('editSatRate').value;
+
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving...';
+        err.classList.add('hidden');
+
+        try {
+            const res = await fetch("/admin/api/payroll/saturday-rates", {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    Designation: desig, 
+                    Rate: parseFloat(rate),
+                    RateID: parseInt(document.getElementById('editSatRateID').value),
+                    OldDesignation: oldDesig
+                })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                closeSaturdayModal();
+                msg.textContent = data.message;
+                msg.className = 'mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border bg-emerald-50 text-emerald-700 border-emerald-200';
+                msg.classList.remove('hidden');
+                loadSaturdayRates();
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } else {
+                err.textContent = data.error; err.classList.remove('hidden');
+            }
+        } catch(e) {
+            err.textContent = 'Server error.'; err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false; btn.innerHTML = 'Update Rate';
         }
     });
 </script>

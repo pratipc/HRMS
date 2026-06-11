@@ -41,13 +41,14 @@
                         <th class="px-6 py-4 font-semibold">Branch Code</th>
                         <th class="px-6 py-4 font-semibold">Branch Name</th>
                         <th class="px-6 py-4 font-semibold">Location</th>
+                        <th class="px-6 py-4 font-semibold">Type</th>
                         <th class="px-6 py-4 font-semibold">Status</th>
                         <th class="px-6 py-4 font-semibold text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="branchTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
                     <tr>
-                        <td colspan="5" class="px-6 py-8 text-center text-slate-500">
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">
                             <i class="ph-bold ph-spinner animate-spin text-2xl mb-2"></i>
                             <p>Loading directory...</p>
                         </td>
@@ -165,14 +166,26 @@
                     ${branch.Location || '<i class="text-slate-300">Not Specified</i>'}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
+                    ${branch.IsHeadOffice 
+                        ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100 shadow-sm"><i class="ph-fill ph-crown"></i> Head Office</span>' 
+                        : '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">Branch Office</span>'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
                     ${branch.IsActive 
                         ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><i class="ph-fill ph-check-circle"></i> Active</span>' 
                         : '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">Inactive</span>'}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right">
-                    <button onclick='openEditBranchModal(${JSON.stringify(branch)})' class="text-indigo-600 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors inline-flex items-center gap-1.5 shadow-sm">
-                        <i class="ph-bold ph-pencil-simple"></i> Edit
-                    </button>
+                    <div class="flex items-center justify-end gap-2">
+                        ${!branch.IsHeadOffice ? `
+                            <button onclick="setHeadOffice(${branch.BranchID})" class="text-amber-600 hover:text-amber-700 bg-white hover:bg-amber-50 p-2 rounded-lg border border-slate-200 hover:border-amber-200 transition-colors shadow-sm" title="Mark as Head Office">
+                                <i class="ph-bold ph-crown-simple text-lg"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick='openEditBranchModal(${JSON.stringify(branch)})' class="text-indigo-600 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-colors inline-flex items-center gap-1.5 shadow-sm">
+                            <i class="ph-bold ph-pencil-simple"></i> Edit
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -199,6 +212,24 @@
         document.getElementById('statusToggleGroup').classList.add('flex');
         document.getElementById('branchModal').classList.remove('hidden');
         document.getElementById('branchModal').classList.add('flex');
+    }
+
+    async function setHeadOffice(branchId) {
+        if (!confirm("Are you sure you want to designate this branch as the Head Office? All other branches will be set as Branch Offices.")) return;
+        
+        try {
+            const res = await fetch(`/admin/api/branches/${branchId}/head-office`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (res.ok) {
+                loadBranches();
+            } else {
+                alert(data.error || 'Failed to update Head Office status.');
+            }
+        } catch (e) {
+            alert('Server error.');
+        }
     }
 
     function closeBranchModal() {

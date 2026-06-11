@@ -78,6 +78,11 @@
                 Branch Directory
             </a>
 
+            <a href="/admin/user-roles" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-shield-check text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                User Role Assignments
+            </a>
+
             <a href="/admin/holidays" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-calendar-blank text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Holiday Calendar
@@ -143,12 +148,12 @@
                 <!-- User Profile Dropdown -->
                 <div class="flex items-center gap-3 cursor-pointer group">
                     <div class="text-right hidden sm:block">
-                        <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ user.username }}</p>
-                        <p class="text-xs text-slate-500 font-semibold">{{ user.role }}</p>
+                        <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ user.username if user and user.username else 'System User' }}</p>
+                        <p class="text-xs text-slate-500 font-semibold">{{ user.role if user and user.role else 'Admin' }}</p>
                     </div>
                     <div class="relative">
                         <div class="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-md group-hover:bg-indigo-600 transition-colors">
-                            {{ user.username[0] | upper }}
+                            {{ (user.username[0] | upper) if user and user.username else 'A' }}
                         </div>
                         <div class="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>

@@ -46,3 +46,28 @@ class PayrollService:
             raise ValueError("Allowance percentage exceeds maximum permissible business thresholds.")
             
         self.payroll_repo.update_global_allowances(da, hra, ma)
+
+    def get_saturday_allowance_rates(self) -> List[Dict[str, Any]]:
+        """Retrieves the revamped designation-based Saturday allowance rates."""
+        return self.payroll_repo.get_saturday_allowance_rates()
+
+    def update_saturday_allowance_rate(self, designation: str, rate: float, rate_id: int = 0, old_designation: str = None) -> None:
+        """Validates and updates a specific Saturday allowance rate."""
+        if rate < 0:
+            raise ValueError("Saturday allowance rate cannot be negative.")
+        self.payroll_repo.update_saturday_allowance_rate(designation, rate, rate_id, old_designation)
+
+    def get_payroll_status(self, year: int, month: int) -> Dict[str, Any]:
+        """Retrieves status of attendance and payroll finalization."""
+        return self.payroll_repo.get_payroll_status(year, month)
+
+    def finalize_payroll(self, year: int, month: int, processed_by: str) -> Dict[str, Any]:
+        """Validates and locks the payroll ledger for a specific month."""
+        status = self.payroll_repo.get_payroll_status(year, month)
+        if not status.get('AttendanceUploaded'):
+            raise ValueError("Cannot finalize payroll: Attendance has not been uploaded for this month.")
+        
+        if status.get('PayrollFinalized'):
+            raise ValueError("Payroll for this month is already finalized.")
+            
+        return self.payroll_repo.finalize_monthly_payroll(year, month, processed_by)

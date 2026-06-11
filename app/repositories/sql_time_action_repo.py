@@ -54,6 +54,11 @@ class SqlTimeActionRepository(ITimeActionRepository):
         self.db_session.commit()
         return dict(result) if result else {}
 
+    def check_attendance_status(self, year: int, month: int) -> bool:
+        sql = text("EXEC sp_CheckAttendanceStatus @Year = :Year, @Month = :Month")
+        result = self.db_session.execute(sql, {"Year": year, "Month": month}).fetchone()
+        return True if result and result[0] == 1 else False
+
     # --- LEAVES ---
     def apply_leave(self, leave_data: Dict[str, Any]) -> Dict[str, Any]:
         sql = text("""

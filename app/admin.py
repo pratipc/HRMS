@@ -4,6 +4,7 @@
 from flask import Blueprint, render_template, session, request, jsonify, Response
 from app.utils.auth_decorators import role_required
 from app import db
+from sqlalchemy import text
 import datetime
 import csv
 from io import StringIO
@@ -46,9 +47,19 @@ def attendance_master_page():
 def get_monthly_attendance_register():
     month_str = request.args.get('month', datetime.date.today().strftime('%Y-%m'))
     service = TimeActionService(SqlTimeActionRepository(db.session))
+    
+    try:
+        year, month = map(int, month_str.split('-'))
+        is_uploaded = service.is_attendance_uploaded(year, month)
+    except Exception:
+        is_uploaded = False
+    
     try:
         register = service.fetch_monthly_register(month_str)
-        return jsonify(register), 200
+        return jsonify({
+            "register": register,
+            "attendance_uploaded": is_uploaded
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -60,6 +71,40 @@ def get_attendance_register():
     try:
         register = service.fetch_daily_register(date_str)
         return jsonify(register), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/attendance/manual-template', methods=['GET'])
+@role_required('Admin')
+def download_manual_attendance_template():
+    """Provides a downloadable CSV template for manual attendance upload."""
+    csv_content = "EmployeeCode,PunchDate,Status\nKPCB-001,2026-05-01,Present\nKPCB-002,2026-05-01,Absent\nKPCB-003,2026-05-01,Leave\nKPCB-004,2026-05-01,Weekly Off\n"
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=manual_attendance_template.csv"}
+    )
+
+@admin_bp.route('/api/attendance/manual-upload', methods=['POST'])
+@role_required('Admin')
+def upload_manual_attendance():
+    """Processes a simple manual attendance CSV format."""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    file = request.files['file']
+    
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Please upload the manual attendance template as a .CSV file."}), 400
+        
+    try:
+        service = TimeActionService(SqlTimeActionRepository(db.session))
+        success_count, errors = service.process_manual_upload(file)
+        
+        if errors and success_count == 0:
+            return jsonify({"error": "Processing failed.", "details": errors}), 400
+        elif errors:
+            return jsonify({"message": f"Processed {success_count} records with some anomalies.", "details": errors}), 207
+        return jsonify({"message": f"Successfully imported {success_count} manual attendance logs!"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -185,6 +230,19 @@ def edit_branch(branch_id):
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/branches/<int:branch_id>/head-office', methods=['POST'])
+@role_required('Admin')
+def set_head_office(branch_id):
+    """API to designate a branch as the Head Office."""
+    sql = text("EXEC sp_SetHeadOffice @BranchID = :branch_id")
+    try:
+        db.session.execute(sql, {"branch_id": branch_id})
+        db.session.commit()
+        return jsonify({"message": "Head Office updated successfully!"}), 200
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/employees', methods=['POST'])
@@ -560,14 +618,51 @@ def update_weekly_offs():
 @role_required('Admin')
 def payroll_master_page():
     """Renders the Dynamic Payroll & Compensation Dashboard."""
-    return render_template('admin/payroll_master.html', user=session)
+    # Ensure session data is available to avoid template indexing errors
+    user_info = {
+        'username': session.get('username', 'Admin'),
+        'role': session.get('role', 'Admin')
+    }
+    return render_template('admin/payroll_master.html', user=user_info)
 
 @admin_bp.route('/api/payroll/salaries', methods=['GET'])
 @role_required('Admin')
 def get_salaries():
     year = request.args.get('year', default=datetime.datetime.now().year, type=int)
     month = request.args.get('month', default=datetime.datetime.now().month, type=int)
-    return jsonify(PayrollService(SqlPayrollRepository(db.session)).generate_monthly_payroll(year, month)), 200
+    
+    service = PayrollService(SqlPayrollRepository(db.session))
+    # This acts as the PREVIEW generator
+    ledger = service.generate_monthly_payroll(year, month)
+    return jsonify({"ledger": ledger}), 200
+
+@admin_bp.route('/api/payroll/status', methods=['GET'])
+@role_required('Admin')
+def get_payroll_status():
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    service = PayrollService(SqlPayrollRepository(db.session))
+    try:
+        return jsonify(service.get_payroll_status(year, month)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/finalize', methods=['POST'])
+@role_required('Admin')
+def finalize_payroll():
+    data = request.json
+    year = data.get('year')
+    month = data.get('month')
+    processed_by = session.get('username', 'Admin')
+    
+    service = PayrollService(SqlPayrollRepository(db.session))
+    try:
+        result = service.finalize_payroll(year, month, processed_by)
+        return jsonify({"message": f"Payroll for {month}/{year} has been finalized and locked!", "data": result}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/employee/<int:emp_id>/basic', methods=['PUT'])
 @role_required('Admin')
@@ -589,3 +684,120 @@ def manage_allowance_config():
         return jsonify({"message": "Global allowances updated. All salaries recalculated!"}), 200
     except ValueError as ve: return jsonify({"error": str(ve)}), 400
     except Exception as e: return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/saturday-rates', methods=['GET'])
+@role_required('Admin')
+def get_saturday_rates():
+    service = PayrollService(SqlPayrollRepository(db.session))
+    try:
+        return jsonify(service.get_saturday_allowance_rates()), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/saturday-rates', methods=['PUT'])
+@role_required('Admin')
+def update_saturday_rate():
+    service = PayrollService(SqlPayrollRepository(db.session))
+    data = request.json
+    try:
+        # Robustly handle different casing for rate_id
+        rate_id = data.get('rate_id') or data.get('RateID') or 0
+        service.update_saturday_allowance_rate(
+            designation=data.get('designation') or data.get('Designation'), 
+            rate=data.get('rate') or data.get('Rate'),
+            rate_id=int(rate_id),
+            old_designation=data.get('old_designation') or data.get('OldDesignation')
+        )
+        return jsonify({"message": "Saturday allowance rate updated successfully!"}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# DYNAMIC USER ROLE MANAGEMENT
+# ---------------------------------------------------------
+@admin_bp.route('/user-roles', methods=['GET'])
+@role_required('Admin')
+def user_roles_page():
+    user_info = {
+        'username': session.get('username', 'Admin'),
+        'role': session.get('role', 'Admin')
+    }
+    return render_template('admin/user_roles.html', user=user_info)
+
+@admin_bp.route('/api/user-roles', methods=['GET'])
+@role_required('Admin')
+def get_employees_with_roles():
+    branch_id = request.args.get('branch_id')
+    if not branch_id:
+        return jsonify({"error": "branch_id is required"}), 400
+    
+    sql = text("EXEC sp_GetEmployeesWithUserRoles @BranchID = :branch_id")
+    try:
+        result = db.session.execute(sql, {"branch_id": branch_id}).mappings().all()
+        return jsonify([dict(row) for row in result]), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/user-roles/<int:user_id>', methods=['PUT'])
+@role_required('Admin')
+def update_user_role(user_id):
+    new_role = request.json.get('Role')
+    if not new_role:
+        return jsonify({"error": "Role is required"}), 400
+        
+    sql = text("EXEC sp_UpdateUserRole @UserID = :user_id, @NewRole = :new_role")
+    try:
+        db.session.execute(sql, {"user_id": user_id, "new_role": new_role})
+        db.session.commit()
+        return jsonify({"message": "Role updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/user-roles/create-account', methods=['POST'])
+@role_required('Admin')
+def create_account_for_employee():
+    emp_id = request.json.get('EmployeeID')
+    if not emp_id:
+        return jsonify({"error": "EmployeeID is required"}), 400
+        
+    try:
+        repo = SqlCoreHrRepository(db.session)
+        service = CoreHrService(repo)
+        emp = service.get_employee_details(emp_id)
+        if not emp:
+            return jsonify({"error": "Employee not found"}), 404
+            
+        username = emp['EmployeeCode']
+        password = 'DefaultPassword@123'
+        
+        sql = text("EXEC sp_CreateUserForExistingEmployee @EmployeeID = :emp_id, @Username = :username, @PasswordHash = :password")
+        db.session.execute(sql, {"emp_id": emp_id, "username": username, "password": password})
+        db.session.commit()
+        
+        return jsonify({"message": "Account created", "Username": username, "Password": password}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/user-roles/<int:user_id>/password', methods=['PUT'])
+@role_required('Admin')
+def update_user_password(user_id):
+    new_password = request.json.get('Password')
+    if not new_password or len(new_password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long."}), 400
+        
+    # In a real app, hash the password here before saving
+    # e.g., hashed_pwd = generate_password_hash(new_password)
+    hashed_pwd = new_password 
+    
+    sql = text("EXEC sp_UpdateUserPassword @UserID = :user_id, @NewPasswordHash = :new_password")
+    try:
+        db.session.execute(sql, {"user_id": user_id, "new_password": hashed_pwd})
+        db.session.commit()
+        return jsonify({"message": "Password updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
