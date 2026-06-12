@@ -67,6 +67,26 @@
                 <i class="ph ph-calendar-plus text-xl text-slate-400 group-hover:text-blue-600 transition-colors"></i> 
                 Apply Leave
             </a>
+
+            <a href="/admin/leave-approvals" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-blue-700 transition-all group">
+                <i class="ph ph-calendar-check text-xl text-slate-400 group-hover:text-blue-600 transition-colors"></i> 
+                Leave Approvals
+            </a>
+
+            {% if user.role in ['Payroll User', 'Attendance User'] %}
+            <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Management</p>
+            <a href="/admin/attendance-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-blue-700 transition-all group">
+                <i class="ph ph-clock text-xl text-slate-400 group-hover:text-blue-600 transition-colors"></i> 
+                Attendance & Shifts
+            </a>
+            {% endif %}
+
+            {% if user.role == 'Payroll User' %}
+            <a href="/admin/payroll-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-blue-700 transition-all group">
+                <i class="ph ph-money text-xl text-slate-400 group-hover:text-blue-600 transition-colors"></i> 
+                Payroll & Salary
+            </a>
+            {% endif %}
         </nav>
         
         <!-- User Actions -->

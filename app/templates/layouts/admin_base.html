@@ -63,6 +63,7 @@
         <nav class="flex-1 px-4 py-8 space-y-1 overflow-y-auto">
             <p class="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Main Menu</p>
             
+            {% if user.role == 'Admin' %}
             <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-squares-four text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Dashboard
@@ -92,21 +93,31 @@
                 <i class="ph ph-sliders text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Leave Policies
             </a>
+            {% endif %}
             
+            <!-- Leave Approvals: Accessible to Admin, Payroll User, Attendance User, and Employee -->
+            {% if user.role in ['Admin', 'Payroll User', 'Attendance User', 'Employee'] %}
             <a href="/admin/leave-approvals" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-calendar-check text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Leave Approvals
             </a>
+            {% endif %}
 
+            <!-- Attendance: Accessible to Admin, Payroll User, and Attendance User -->
+            {% if user.role in ['Admin', 'Payroll User', 'Attendance User'] %}
             <a href="/admin/attendance-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-clock text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Attendance & Shifts
             </a>
+            {% endif %}
             
+            <!-- Payroll: Accessible to Admin and Payroll User -->
+            {% if user.role in ['Admin', 'Payroll User'] %}
             <a href="/admin/payroll-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-money text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Payroll & Salary
             </a>
+            {% endif %}
         </nav>
         
         <!-- User Actions -->

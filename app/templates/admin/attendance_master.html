@@ -1,6 +1,6 @@
 <!-- File Name: attendance_master.html -->
 <!-- Location: kpcb_hrms/app/templates/admin/attendance_master.html -->
-{% extends "layouts/admin_base.html" %}
+{% extends 'layouts/admin_base.html' if user.role == 'Admin' else 'layouts/employee_base.html' %}
 
 {% block header_title %}Time & Attendance Management{% endblock %}
 

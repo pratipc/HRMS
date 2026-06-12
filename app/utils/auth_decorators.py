@@ -14,14 +14,14 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-def role_required(required_role):
-    """Ensures the user has the specific role required for the route."""
+def role_required(*allowed_roles):
+    """Ensures the user has one of the specific roles required for the route."""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not session.get('logged_in'):
                 return redirect(url_for('auth.login_page'))
-            if session.get('role') != required_role:
+            if session.get('role') not in allowed_roles:
                 # In a production app, you might render a specific 403 HTML page here
                 return "Unauthorized Access: You do not have permission to view this page.", 403
             return f(*args, **kwargs)

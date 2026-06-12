@@ -14,7 +14,7 @@ from app.services.time_action_service import TimeActionService
 employee_bp = Blueprint('employee', __name__, url_prefix='/employee')
 
 @employee_bp.route('/dashboard')
-@role_required('Employee')
+@role_required('Employee', 'Payroll User', 'Attendance User')
 def dashboard():
     """Renders the Employee Dashboard."""
     employee_id = session.get('employee_id')
@@ -34,7 +34,7 @@ def dashboard():
 # ATTENDANCE API ROUTES
 # ---------------------------------------------------------
 @employee_bp.route('/api/attendance/punch-in', methods=['POST'])
-@role_required('Employee')
+@role_required('Employee', 'Payroll User', 'Attendance User')
 def punch_in():
     """API for an employee to record their daily punch-in time."""
     # We securely grab the employee_id from the session, NOT from user input!
@@ -55,7 +55,7 @@ def punch_in():
 # LEAVE MANAGEMENT API ROUTES
 # ---------------------------------------------------------
 @employee_bp.route('/api/leave-balances', methods=['GET'])
-@role_required('Employee')
+@role_required('Employee', 'Payroll User', 'Attendance User')
 def get_leave_balances():
     """API to fetch the active leave balances for the logged-in employee."""
     employee_id = session.get('employee_id')
@@ -71,7 +71,7 @@ def get_leave_balances():
         return jsonify({"error": str(e)}), 500
 
 @employee_bp.route('/api/leave-types', methods=['GET'])
-@role_required('Employee')
+@role_required('Employee', 'Payroll User', 'Attendance User')
 def get_leave_types():
     """API to fetch the list of dynamic leave categories for dropdown configuration."""
     repo = SqlTimeActionRepository(db.session)
@@ -83,7 +83,7 @@ def get_leave_types():
         return jsonify({"error": str(e)}), 500
 
 @employee_bp.route('/api/leave/apply', methods=['POST'])
-@role_required('Employee')
+@role_required('Employee', 'Payroll User', 'Attendance User')
 def apply_leave():
     """API for an employee to submit a leave request."""
     data = request.json

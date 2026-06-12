@@ -1,6 +1,6 @@
 <!-- File Name: leave_approvals.html -->
 <!-- Location: kpcb_hrms/app/templates/admin/leave_approvals.html -->
-{% extends "layouts/admin_base.html" %}
+{% extends 'layouts/admin_base.html' if user.role == 'Admin' else 'layouts/employee_base.html' %}
 
 {% block header_title %}Leave Approvals Portal{% endblock %}
 

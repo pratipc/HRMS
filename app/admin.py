@@ -37,13 +37,13 @@ def dashboard():
 # TIME, ATTENDANCE & SHIFT MANAGEMENT
 # ---------------------------------------------------------
 @admin_bp.route('/attendance-master', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def attendance_master_page():
     """Renders the unified Attendance Register and Ingestion Portal."""
     return render_template('admin/attendance_master.html', user=session, today=datetime.date.today().strftime('%Y-%m-%d'))
 
 @admin_bp.route('/api/attendance/monthly-register', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def get_monthly_attendance_register():
     month_str = request.args.get('month', datetime.date.today().strftime('%Y-%m'))
     service = TimeActionService(SqlTimeActionRepository(db.session))
@@ -64,7 +64,7 @@ def get_monthly_attendance_register():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/attendance/register', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def get_attendance_register():
     date_str = request.args.get('date', datetime.date.today().strftime('%Y-%m-%d'))
     service = TimeActionService(SqlTimeActionRepository(db.session))
@@ -75,7 +75,7 @@ def get_attendance_register():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/attendance/manual-template', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def download_manual_attendance_template():
     """Provides a downloadable CSV template for manual attendance upload."""
     csv_content = "EmployeeCode,PunchDate,Status\nKPCB-001,2026-05-01,Present\nKPCB-002,2026-05-01,Absent\nKPCB-003,2026-05-01,Leave\nKPCB-004,2026-05-01,Weekly Off\n"
@@ -86,7 +86,7 @@ def download_manual_attendance_template():
     )
 
 @admin_bp.route('/api/attendance/manual-upload', methods=['POST'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def upload_manual_attendance():
     """Processes a simple manual attendance CSV format."""
     if 'file' not in request.files:
@@ -109,7 +109,7 @@ def upload_manual_attendance():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/attendance/biometric-upload', methods=['POST'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User')
 def upload_biometric_punches():
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -534,13 +534,13 @@ def run_year_end_processing():
 # LEAVE APPROVALS UI & REST API ENDPOINTS
 # ---------------------------------------------------------
 @admin_bp.route('/leave-approvals', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User', 'Employee')
 def leave_approvals_page():
     """Renders the Leave Approvals Management Dashboard."""
     return render_template('admin/leave_approvals.html', user=session)
 
 @admin_bp.route('/api/leaves/pending', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User', 'Employee')
 def get_pending_leaves():
     """Rest API to fetch all active pending leave applications."""
     repo = SqlTimeActionRepository(db.session)
@@ -551,7 +551,7 @@ def get_pending_leaves():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/leaves/history', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User', 'Employee')
 def get_leave_history():
     """Retrieves processed (approved/rejected) leave applications for the Audit History Tab."""
     repo = SqlTimeActionRepository(db.session)
@@ -562,7 +562,7 @@ def get_leave_history():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/leaves/process', methods=['POST'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User', 'Attendance User', 'Employee')
 def process_leave():
     """Rest API to Approve or Reject an active leave request."""
     data = request.json
@@ -615,7 +615,7 @@ def update_weekly_offs():
 # PAYROLL & COMPENSATION (NEW UI ROUTE ADDED HERE)
 # ---------------------------------------------------------
 @admin_bp.route('/payroll-master', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def payroll_master_page():
     """Renders the Dynamic Payroll & Compensation Dashboard."""
     # Ensure session data is available to avoid template indexing errors
@@ -626,7 +626,7 @@ def payroll_master_page():
     return render_template('admin/payroll_master.html', user=user_info)
 
 @admin_bp.route('/api/payroll/salaries', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def get_salaries():
     year = request.args.get('year', default=datetime.datetime.now().year, type=int)
     month = request.args.get('month', default=datetime.datetime.now().month, type=int)
@@ -637,7 +637,7 @@ def get_salaries():
     return jsonify({"ledger": ledger}), 200
 
 @admin_bp.route('/api/payroll/status', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def get_payroll_status():
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
@@ -648,7 +648,7 @@ def get_payroll_status():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/finalize', methods=['POST'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def finalize_payroll():
     data = request.json
     year = data.get('year')
@@ -665,7 +665,7 @@ def finalize_payroll():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/employee/<int:emp_id>/basic', methods=['PUT'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def update_basic_pay(emp_id):
     try:
         PayrollService(SqlPayrollRepository(db.session)).update_basic_pay(emp_id, request.json.get('BasicPay'))
@@ -674,7 +674,7 @@ def update_basic_pay(emp_id):
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/config', methods=['GET', 'PUT'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def manage_allowance_config():
     service = PayrollService(SqlPayrollRepository(db.session))
     if request.method == 'GET':
@@ -686,7 +686,7 @@ def manage_allowance_config():
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/saturday-rates', methods=['GET'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def get_saturday_rates():
     service = PayrollService(SqlPayrollRepository(db.session))
     try:
@@ -695,7 +695,7 @@ def get_saturday_rates():
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/payroll/saturday-rates', methods=['PUT'])
-@role_required('Admin')
+@role_required('Admin', 'Payroll User')
 def update_saturday_rate():
     service = PayrollService(SqlPayrollRepository(db.session))
     data = request.json

@@ -1,6 +1,6 @@
 <!-- File Name: payroll_master.html -->
 <!-- Location: kpcb_hrms/app/templates/admin/payroll_master.html -->
-{% extends "layouts/admin_base.html" %}
+{% extends 'layouts/admin_base.html' if user.role == 'Admin' else 'layouts/employee_base.html' %}
 
 {% block header_title %}Payroll & Compensation{% endblock %}
 
