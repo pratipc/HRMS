@@ -92,13 +92,15 @@ def upload_manual_attendance():
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     file = request.files['file']
+    branch_id = request.form.get('branch_id')
     
     if not file.filename.lower().endswith('.csv'):
         return jsonify({"error": "Please upload the manual attendance template as a .CSV file."}), 400
         
     try:
         service = TimeActionService(SqlTimeActionRepository(db.session))
-        success_count, errors = service.process_manual_upload(file)
+        bid = int(branch_id) if branch_id else None
+        success_count, errors = service.process_manual_upload(file, branch_id=bid)
         
         if errors and success_count == 0:
             return jsonify({"error": "Processing failed.", "details": errors}), 400
@@ -114,6 +116,7 @@ def upload_biometric_punches():
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     file = request.files['file']
+    branch_id = request.form.get('branch_id')
     
     # Validation against improper formats
     if not file.filename.lower().endswith(('.csv', '.xls', '.xlsx')):
@@ -121,8 +124,9 @@ def upload_biometric_punches():
         
     try:
         service = TimeActionService(SqlTimeActionRepository(db.session))
+        bid = int(branch_id) if branch_id else None
         # Send the raw file to our bespoke ETL parser
-        success_count, errors = service.process_biometric_upload(file)
+        success_count, errors = service.process_biometric_upload(file, branch_id=bid)
         
         if errors:
             return jsonify({"message": f"Processed {success_count} daily attendance points with anomalies.", "details": errors}), 207
@@ -489,42 +493,45 @@ def edit_leave_type(type_id):
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------
-# LEAVE CAPPING ENGINE EXECUTION ROUTES
+# LEAVE APPROVAL WORKFLOW API ENDPOINTS
 # ---------------------------------------------------------
-@admin_bp.route('/api/leaves/balances/<int:year>', methods=['GET'])
+@admin_bp.route('/leave-workflow', methods=['GET'])
 @role_required('Admin')
-def get_employee_leave_balances(year):
-    """API to fetch leave balances and the active capping lock status."""
-    repo = SqlTimeActionRepository(db.session)
-    service = TimeActionService(repo)
+def leave_workflow_page():
+    """Renders the Leave Workflow Configuration UI."""
+    return render_template('admin/leave_workflow.html', user=session)
+
+@admin_bp.route('/api/leaves/workflow/<int:branch_id>', methods=['GET'])
+@role_required('Admin')
+def get_leave_workflow(branch_id):
+    service = TimeActionService(SqlTimeActionRepository(db.session))
     try:
-        balances = service.fetch_employee_leave_balances(year)
-        is_locked = service.check_if_year_locked(year)
-        
-        # Unified response dictionary to safely transfer state to Javascript
-        return jsonify({
-            "balances": balances,
-            "is_locked": is_locked
-        }), 200
+        workflow = service.get_leave_approval_workflow(branch_id)
+        return jsonify(workflow), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@admin_bp.route('/api/leaves/year-end', methods=['POST'])
+@admin_bp.route('/api/leaves/workflow/<int:branch_id>/approvers', methods=['GET'])
 @role_required('Admin')
-def run_year_end_processing():
-    """API to execute the year-end leave capping algorithms."""
-    data = request.json
-    year = data.get('year')
-    processed_by = session.get('username', 'System Admin')
-    
-    repo = SqlTimeActionRepository(db.session)
-    service = TimeActionService(repo)
+def get_eligible_approvers(branch_id):
+    service = TimeActionService(SqlTimeActionRepository(db.session))
     try:
-        result = service.run_year_end_processing(int(year), processed_by)
-        return jsonify({
-            "message": f"Successfully completed year-end processing! Prepared cycle balances for year {int(year) + 1}.",
-            "data": result
-        }), 200
+        approvers = service.get_eligible_approvers(branch_id)
+        return jsonify(approvers), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/leaves/workflow/<int:branch_id>', methods=['POST'])
+@role_required('Admin')
+def save_leave_workflow(branch_id):
+    data = request.json
+    workflow_data = data.get('workflow', [])
+    apply_to_all = data.get('applyToAll', False)
+    
+    service = TimeActionService(SqlTimeActionRepository(db.session))
+    try:
+        service.save_leave_approval_workflow(branch_id, workflow_data, apply_to_all)
+        return jsonify({"message": "Workflow saved successfully"}), 200
     except ValueError as ve:
         return jsonify({"error": str(ve)}), 400
     except Exception as e:
@@ -545,19 +552,26 @@ def get_pending_leaves():
     """Rest API to fetch all active pending leave applications."""
     repo = SqlTimeActionRepository(db.session)
     service = TimeActionService(repo)
+    approver_id = session.get('employee_id')
+    role = session.get('role')
     try:
-        return jsonify(service.fetch_pending_leave_applications()), 200
+        return jsonify(service.fetch_pending_leave_applications(approver_id, role)), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @admin_bp.route('/api/leaves/history', methods=['GET'])
 @role_required('Admin', 'Payroll User', 'Attendance User', 'Employee')
 def get_leave_history():
-    """Retrieves processed (approved/rejected) leave applications for the Audit History Tab."""
+    """Retrieves processed (approved/rejected) leave applications for the History Tab."""
+    month = request.args.get('month')
+    year = request.args.get('year')
+
     repo = SqlTimeActionRepository(db.session)
     service = TimeActionService(repo)
     try:
-        return jsonify(service.fetch_processed_leave_applications()), 200
+        month_int = int(month) if month and month != 'ALL' else None
+        year_int = int(year) if year and year != 'ALL' else None
+        return jsonify(service.fetch_processed_leave_applications(month_int, year_int)), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -566,15 +580,16 @@ def get_leave_history():
 def process_leave():
     """Rest API to Approve or Reject an active leave request."""
     data = request.json
-    
+    approver_id = session.get('employee_id')
+
     # Robustly handle both Javascript casing styles to prevent missing ID errors
     application_id = data.get('application_id') or data.get('ApplicationID')
     status = data.get('status') or data.get('Status') # 'Approved' or 'Rejected'
-    
+
     repo = SqlTimeActionRepository(db.session)
     service = TimeActionService(repo)
     try:
-        result = service.process_leave_application(int(application_id), status)
+        result = service.process_leave_application(int(application_id), status, approver_id)
         return jsonify({
             "message": f"Leave application successfully {status.lower()}!",
             "data": result
@@ -619,11 +634,7 @@ def update_weekly_offs():
 def payroll_master_page():
     """Renders the Dynamic Payroll & Compensation Dashboard."""
     # Ensure session data is available to avoid template indexing errors
-    user_info = {
-        'username': session.get('username', 'Admin'),
-        'role': session.get('role', 'Admin')
-    }
-    return render_template('admin/payroll_master.html', user=user_info)
+    return render_template('admin/payroll_master.html', user=session)
 
 @admin_bp.route('/api/payroll/salaries', methods=['GET'])
 @role_required('Admin', 'Payroll User')
@@ -720,11 +731,7 @@ def update_saturday_rate():
 @admin_bp.route('/user-roles', methods=['GET'])
 @role_required('Admin')
 def user_roles_page():
-    user_info = {
-        'username': session.get('username', 'Admin'),
-        'role': session.get('role', 'Admin')
-    }
-    return render_template('admin/user_roles.html', user=user_info)
+    return render_template('admin/user_roles.html', user=session)
 
 @admin_bp.route('/api/user-roles', methods=['GET'])
 @role_required('Admin')

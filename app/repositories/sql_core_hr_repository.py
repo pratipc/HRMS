@@ -34,6 +34,7 @@ class SqlCoreHrRepository(ICoreHrRepository):
     def create_employee(self, employee_data: dict) -> Dict[str, Any]:
         """Creates a new employee and natively links their initial Basic Pay."""
         sql = text("""
+            SET NOCOUNT ON;
             EXEC sp_CreateEmployee 
                 @FirstName = :FirstName, 
                 @LastName = :LastName, 
@@ -64,10 +65,16 @@ class SqlCoreHrRepository(ICoreHrRepository):
             "BankIFSCCode": employee_data.get('BankIFSCCode'),
             "BranchID": employee_data.get('BranchID'),
             "BasicPay": float(employee_data.get('BasicPay', 0.00))
-        }).mappings().fetchone()
+        })
+
+        row = None
+        if result.returns_rows:
+            rows = result.mappings().fetchall()
+            if rows:
+                row = rows[0]
 
         self.db_session.commit()
-        return dict(result) if result else {"status": "success"}
+        return dict(row) if row else {"status": "success"}
 
     def bulk_create_employees(self, employees_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -75,6 +82,7 @@ class SqlCoreHrRepository(ICoreHrRepository):
         Maps the expanded KYC, banking, and Basic Pay columns from the CSV data.
         """
         sql = text("""
+            SET NOCOUNT ON;
             EXEC sp_CreateEmployee 
                 @FirstName = :FirstName, 
                 @LastName = :LastName, 
@@ -108,10 +116,12 @@ class SqlCoreHrRepository(ICoreHrRepository):
                     "BankIFSCCode": emp.get('BankIFSCCode'),
                     "BranchID": emp.get('BranchID'),
                     "BasicPay": float(emp.get('BasicPay', 0.00))
-                }).mappings().fetchone()
+                })
 
-                if result:
-                    results.append(dict(result))
+                if result.returns_rows:
+                    row = result.mappings().fetchone()
+                    if row:
+                        results.append(dict(row))
 
             # Commit the entire batch as a single transactional block
             self.db_session.commit()
@@ -123,6 +133,7 @@ class SqlCoreHrRepository(ICoreHrRepository):
     def update_employee(self, employee_id: int, employee_data: dict) -> Dict[str, Any]:
         """Updates employee profile and their basic compensation via the HR dashboard."""
         sql = text("""
+            SET NOCOUNT ON;
             EXEC sp_UpdateEmployee
                 @EmployeeID = :EmployeeID,
                 @FirstName = :FirstName,
@@ -155,10 +166,16 @@ class SqlCoreHrRepository(ICoreHrRepository):
             "BankIFSCCode": employee_data.get('BankIFSCCode'),
             "BranchID": employee_data.get('BranchID'),
             "BasicPay": float(employee_data.get('BasicPay', 0.00))
-        }).mappings().fetchone()
+        })
+
+        row = None
+        if result.returns_rows:
+            rows = result.mappings().fetchall()
+            if rows:
+                row = rows[0]
 
         self.db_session.commit()
-        return dict(result) if result else {"status": "success"}
+        return dict(row) if row else {"status": "success"}
 
     # --- Dashboard Metrics ---
     def get_dashboard_metrics(self) -> Dict[str, Any]:

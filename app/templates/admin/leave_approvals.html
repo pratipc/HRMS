@@ -9,18 +9,28 @@
     <!-- Header Section with Tab Navigation -->
     <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
         <div>
-            <h2 class="text-xl font-bold text-slate-800">Leave Approvals & Audit</h2>
+            <h2 class="text-xl font-bold text-slate-800">Leave Approvals & History</h2>
             <p class="text-sm text-slate-500">Review pending requests and audit historical leave decisions.</p>
         </div>
         
         <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            {% if user.role == 'Admin' %}
+            <!-- Admin Branch Filter -->
+            <div class="relative w-full sm:w-48">
+                <i class="ph-bold ph-buildings absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <select id="branchFilter" onchange="filterLeavesByBranch()" class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm cursor-pointer font-semibold text-slate-700">
+                    <option value="ALL">All Branches</option>
+                </select>
+            </div>
+            {% endif %}
+            
             <!-- Navigation Tabs -->
             <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto">
                 <button onclick="setTab('pending')" id="tabBtnPending" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2">
                     <i class="ph-bold ph-hourglass-high"></i> Pending Requests
                 </button>
                 <button onclick="setTab('history')" id="tabBtnHistory" class="flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
-                    <i class="ph-bold ph-clock-counter-clockwise"></i> Audit History
+                    <i class="ph-bold ph-clock-counter-clockwise"></i> History
                 </button>
             </div>
         </div>
@@ -50,31 +60,58 @@
         </div>
     </div>
 
-    <!-- TAB 2: Processed Audit History Table -->
-    <div id="tabContentHistory" class="hidden flex flex-col">
-        <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="font-bold text-slate-800 text-sm">Processed Leave Audit Ledger</h3>
-                <div class="relative">
-                    <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" id="historySearch" placeholder="Search history..." class="pl-10 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs shadow-sm w-48 transition-all">
-                </div>
+    <!-- TAB 2: History Table -->
+    <div id="tabContentHistory" class="hidden flex flex-col space-y-4">
+        <!-- History Filter Bar -->
+        <div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Filter By:</label>
+                <select id="histYear" onchange="loadHistoryLeaves()" class="bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="ALL">All Years</option>
+                    <option value="2025">2025</option>
+                    <option value="2026" selected>2026</option>
+                    <option value="2027">2027</option>
+                </select>
+                <select id="histMonth" onchange="loadHistoryLeaves()" class="bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="ALL">All Months</option>
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
             </div>
-            
+            <div class="flex-1"></div>
+            <div class="relative">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="historySearch" onkeyup="searchHistory()" placeholder="Search history..." class="pl-10 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs shadow-sm w-48 transition-all">
+            </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl shadow-sm border border-slate-200 overflow-hidden bg-white">
             <div class="flex-1 overflow-x-auto min-h-[300px] relative">
                 <div id="historyLoadingState" class="absolute inset-0 flex items-center justify-center bg-white/80 z-10 hidden">
                     <i class="ph-bold ph-spinner animate-spin text-2xl text-indigo-500 mr-2"></i>
-                    <span class="text-sm font-semibold text-slate-600">Retrieving audit logs...</span>
+                    <span class="text-sm font-semibold text-slate-600">Retrieving history logs...</span>
                 </div>
 
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-50/70 text-slate-500 uppercase tracking-wider border-b border-slate-200 font-bold">
                             <th class="px-5 py-3.5 text-left whitespace-nowrap">Employee Details</th>
+                            <th class="px-4 py-3.5 text-left whitespace-nowrap">Branch</th>
                             <th class="px-4 py-3.5 text-left whitespace-nowrap">Leave Category</th>
-                            <th class="px-4 py-3.5 text-left whitespace-nowrap">Date Range</th>
+                            <th class="px-4 py-3.5 text-left whitespace-nowrap">Timeline</th>
                             <th class="px-4 py-3.5 text-center whitespace-nowrap">Duration</th>
-                            <th class="px-5 py-3.5 text-right whitespace-nowrap">Final Status</th>
+                            <th class="px-4 py-3.5 text-left whitespace-nowrap">Approval Cycle</th>
+                            <th class="px-5 py-3.5 text-right whitespace-nowrap">Final Decision</th>
                         </tr>
                     </thead>
                     <tbody id="historyTableBody" class="divide-y divide-slate-100">
@@ -84,8 +121,30 @@
                 
                 <div id="historyEmptyState" class="hidden flex flex-col items-center justify-center text-slate-400 py-12">
                     <i class="ph-bold ph-file-dashed text-4xl mb-2"></i>
-                    <p class="font-medium">No processed leave history found.</p>
+                    <p class="font-medium">No processed leave history found for this selection.</p>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Leave Modal -->
+<div id="processLeaveModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2" id="processModalTitle">
+                <i class="ph-fill ph-question text-indigo-600"></i> Confirm Action
+            </h3>
+            <button onclick="closeProcessModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-sm font-medium text-slate-600 mb-6" id="processModalMessage">Are you sure you want to process this request?</p>
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="closeProcessModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button id="btnConfirmProcess" class="px-5 py-2.5 text-white text-sm font-bold rounded-lg shadow-md transition-all">Confirm</button>
             </div>
         </div>
     </div>
@@ -94,12 +153,50 @@
 <script>
     let activeTab = 'pending';
     let historyData = [];
+    let pendingData = [];
+    let branches = [];
 
     document.addEventListener("DOMContentLoaded", () => {
+        if (document.getElementById('branchFilter')) {
+            loadBranches();
+        }
         loadPendingLeaves();
     });
 
-    // --- Tab Navigation Logic ---
+    async function loadBranches() {
+        try {
+            const res = await fetch('/admin/api/branches');
+            branches = await res.json();
+            const filter = document.getElementById('branchFilter');
+            branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.textContent = b.BranchName;
+                filter.appendChild(opt);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function filterLeavesByBranch() {
+        if (!pendingData) return;
+        const branchId = document.getElementById('branchFilter') ? document.getElementById('branchFilter').value : 'ALL';
+        
+        const filtered = branchId === 'ALL' 
+            ? pendingData 
+            : pendingData.filter(req => req.BranchID == branchId);
+            
+        if (filtered.length === 0) {
+            document.getElementById('pendingGrid').classList.add('hidden');
+            document.getElementById('pendingEmptyState').classList.remove('hidden');
+        } else {
+            document.getElementById('pendingEmptyState').classList.add('hidden');
+            renderPendingGrid(filtered);
+            document.getElementById('pendingGrid').classList.remove('hidden');
+        }
+    }
+
     function setTab(tab) {
         activeTab = tab;
         const tabPending = document.getElementById('tabContentPending');
@@ -122,7 +219,6 @@
         }
     }
 
-    // --- Utility Functions ---
     function escapeHtml(unsafe) {
         return (unsafe || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
@@ -136,19 +232,18 @@
             'from-amber-500 to-orange-600 text-amber-100'
         ];
         let hash = 0;
-        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        for (let i = 0; i < (name||'').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
         return colors[Math.abs(hash) % colors.length];
     }
 
     function getLeaveTypeBadge(typeName) {
-        const lowerName = typeName.toLowerCase();
+        const lowerName = (typeName||'').toLowerCase();
         if (lowerName.includes('casual')) return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-100"><span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>${escapeHtml(typeName)}</span>`;
         if (lowerName.includes('sick') || lowerName.includes('medical')) return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-100"><span class="h-1.5 w-1.5 rounded-full bg-rose-500"></span>${escapeHtml(typeName)}</span>`;
         if (lowerName.includes('privilege') || lowerName.includes('earned')) return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-100"><span class="h-1.5 w-1.5 rounded-full bg-purple-500"></span>${escapeHtml(typeName)}</span>`;
         return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-50 text-slate-700 border border-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>${escapeHtml(typeName)}</span>`;
     }
 
-    // --- TAB 1: Pending Logic ---
     async function loadPendingLeaves() {
         document.getElementById('pendingLoadingState').classList.remove('hidden');
         document.getElementById('pendingGrid').classList.add('hidden');
@@ -156,16 +251,14 @@
 
         try {
             const res = await fetch('/admin/api/leaves/pending');
-            const data = await res.json();
-            
-            if (data.length === 0) {
+            pendingData = await res.json();
+            if (pendingData.length === 0) {
                 document.getElementById('pendingEmptyState').classList.remove('hidden');
             } else {
-                renderPendingGrid(data);
-                document.getElementById('pendingGrid').classList.remove('hidden');
+                filterLeavesByBranch();
             }
         } catch (err) {
-            console.error("Failed to load pending leaves", err);
+            console.error(err);
         } finally {
             document.getElementById('pendingLoadingState').classList.add('hidden');
         }
@@ -178,7 +271,6 @@
             const initials = names.map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'EM';
             const avatarBg = getAvatarColorClass(req.EmployeeName);
             const categoryBadge = getLeaveTypeBadge(req.LeaveTypeName);
-            
             const startStr = new Date(req.StartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const endStr = new Date(req.EndDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -190,13 +282,23 @@
                     </div>
                     <div class="flex-1 min-w-0">
                         <h3 class="font-bold text-slate-800 text-sm truncate">${escapeHtml(req.EmployeeName)}</h3>
-                        <span class="inline-flex px-1.5 py-0.5 mt-0.5 rounded bg-slate-100 text-[9px] font-mono font-bold text-slate-500 border border-slate-200">
-                            ${req.EmployeeCode}
-                        </span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-mono font-bold text-slate-500 border border-slate-200">
+                                ${req.EmployeeCode}
+                            </span>
+                            <span class="text-xs text-slate-400 font-semibold truncate">&bull; ${escapeHtml(req.BranchName)}</span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="flex-1 space-y-4 mb-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-500">Workflow Status:</span>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">Step ${req.CurrentStep}</span>
+                            <div class="text-[9px] font-semibold text-slate-400 mt-1">Pending with: ${escapeHtml(req.PendingWithName || 'Unassigned')}</div>
+                        </div>
+                    </div>
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-semibold text-slate-500">Leave Category:</span>
                         ${categoryBadge}
@@ -216,10 +318,10 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3 mt-auto">
-                    <button onclick="processLeave(${req.ApplicationID}, 'Rejected', this)" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 hover:border-red-300 transition-colors">
+                    <button onclick="openProcessModal(${req.ApplicationID}, 'Rejected')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 hover:border-red-300 transition-colors">
                         <i class="ph-bold ph-x-circle text-sm"></i> Reject
                     </button>
-                    <button onclick="processLeave(${req.ApplicationID}, 'Approved', this)" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md hover:bg-indigo-700 shadow-indigo-500/30 transition-colors">
+                    <button onclick="openProcessModal(${req.ApplicationID}, 'Approved')" class="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-md hover:bg-indigo-700 shadow-indigo-500/30 transition-colors">
                         <i class="ph-bold ph-check-circle text-sm"></i> Approve
                     </button>
                 </div>
@@ -228,95 +330,130 @@
         }).join('');
     }
 
-    async function processLeave(appId, status, btnElement) {
-        if (!appId) {
-            alert("CRITICAL: Application ID is missing.");
-            return;
-        }
+    let currentProcessAppId = null;
+    let currentProcessStatus = null;
 
+    function openProcessModal(appId, status) {
+        currentProcessAppId = appId;
+        currentProcessStatus = status;
+        const modal = document.getElementById('processLeaveModal');
+        const titleIcon = document.getElementById('processModalTitle');
+        const message = document.getElementById('processModalMessage');
+        const confirmBtn = document.getElementById('btnConfirmProcess');
+        if (status === 'Approved') {
+            titleIcon.innerHTML = '<i class="ph-fill ph-check-circle text-emerald-600"></i> Confirm Approval';
+            message.innerHTML = 'Are you sure you want to <strong>Approve</strong> this leave request?';
+            confirmBtn.className = 'px-5 py-2.5 text-white text-sm font-bold rounded-lg shadow-md transition-all bg-emerald-600 hover:bg-emerald-700';
+            confirmBtn.innerHTML = 'Yes, Approve';
+        } else {
+            titleIcon.innerHTML = '<i class="ph-fill ph-x-circle text-rose-600"></i> Confirm Rejection';
+            message.innerHTML = 'Are you sure you want to <strong>Reject</strong> this leave request?';
+            confirmBtn.className = 'px-5 py-2.5 text-white text-sm font-bold rounded-lg shadow-md transition-all bg-rose-600 hover:bg-rose-700';
+            confirmBtn.innerHTML = 'Yes, Reject';
+        }
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+
+    function closeProcessModal() {
+        const modal = document.getElementById('processLeaveModal');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+    }
+
+    document.getElementById('btnConfirmProcess').addEventListener('click', async function() {
+        if (!currentProcessAppId || !currentProcessStatus) return;
+        const btnElement = this;
         const originalHTML = btnElement.innerHTML;
         btnElement.disabled = true;
         btnElement.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i> Processing...`;
-
         try {
             const res = await fetch('/admin/api/leaves/process', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ application_id: appId, status: status })
+                body: JSON.stringify({ application_id: currentProcessAppId, status: currentProcessStatus })
             });
-            const data = await res.json();
-            
             if (res.ok) {
-                loadPendingLeaves();
+                closeProcessModal(); loadPendingLeaves();
             } else {
-                alert(`Rejection/Approval Error:\n${data.error}`);
-                btnElement.disabled = false;
-                btnElement.innerHTML = originalHTML;
+                const data = await res.json();
+                alert(`Error: ${data.error}`);
+                btnElement.disabled = false; btnElement.innerHTML = originalHTML;
             }
         } catch (err) {
-            alert('Server communication failed.');
-            btnElement.disabled = false;
-            btnElement.innerHTML = originalHTML;
+            alert('Server error.');
+            btnElement.disabled = false; btnElement.innerHTML = originalHTML;
         }
-    }
+    });
 
-    // --- TAB 2: History Logic ---
     async function loadHistoryLeaves() {
-        document.getElementById('historyLoadingState').classList.remove('hidden');
-        document.getElementById('historyEmptyState').classList.add('hidden');
-        document.getElementById('historyTableBody').innerHTML = '';
+        const loadingState = document.getElementById('historyLoadingState');
+        const emptyState = document.getElementById('historyEmptyState');
+        const tbody = document.getElementById('historyTableBody');
+        const year = document.getElementById('histYear').value;
+        const month = document.getElementById('histMonth').value;
+
+        loadingState.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        tbody.innerHTML = '';
 
         try {
-            const res = await fetch('/admin/api/leaves/history');
+            const res = await fetch(`/admin/api/leaves/history?year=${year}&month=${month}`);
             historyData = await res.json();
-            
             if (historyData.length === 0) {
-                document.getElementById('historyEmptyState').classList.remove('hidden');
+                emptyState.classList.remove('hidden');
             } else {
                 renderHistoryTable(historyData);
             }
         } catch (err) {
-            console.error("Failed to load history", err);
+            console.error(err);
         } finally {
-            document.getElementById('historyLoadingState').classList.add('hidden');
+            loadingState.classList.add('hidden');
         }
     }
 
-    // Search Filtering for History Tab
-    document.getElementById('historySearch').addEventListener('input', function(e) {
-        const term = e.target.value.toLowerCase();
+    function searchHistory() {
+        const term = document.getElementById('historySearch').value.toLowerCase();
         const filtered = historyData.filter(req => 
             (req.EmployeeName || '').toLowerCase().includes(term) ||
-            (req.EmployeeCode || '').toLowerCase().includes(term) ||
-            (req.LeaveTypeName || '').toLowerCase().includes(term) ||
-            (req.Status || '').toLowerCase().includes(term)
+            (req.EmployeeCode || '').toLowerCase().includes(term)
         );
         renderHistoryTable(filtered);
-    });
+    }
 
     function renderHistoryTable(data) {
         const tbody = document.getElementById('historyTableBody');
-        
         tbody.innerHTML = data.map(req => {
             const names = (req.EmployeeName || '').split(' ');
             const initials = names.map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'EM';
             const avatarBg = getAvatarColorClass(req.EmployeeName);
             const categoryBadge = getLeaveTypeBadge(req.LeaveTypeName);
-            
             const startStr = new Date(req.StartDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const endStr = new Date(req.EndDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             
-            // Format Processed Date
-            const actionDateStr = new Date(req.AppliedOn).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit' });
+            let cycleHtml = '<div class="flex flex-col gap-1.5">';
+            if (req.ActionHistory && req.ActionHistory.length > 0) {
+                req.ActionHistory.forEach((action, i) => {
+                    const statusColor = action.ActionStatus === 'Approved' ? 'text-emerald-600' : 'text-rose-600';
+                    const icon = action.ActionStatus === 'Approved' ? 'ph-check-circle' : 'ph-x-circle';
+                    cycleHtml += `
+                        <div class="flex items-start gap-2 group/step">
+                            <div class="mt-0.5 flex flex-col items-center shrink-0">
+                                <i class="ph-fill ${icon} ${statusColor} text-sm"></i>
+                                ${i < req.ActionHistory.length - 1 ? '<div class="w-px h-3 bg-slate-200"></div>' : ''}
+                            </div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-[10px] font-bold text-slate-700 leading-none">${escapeHtml(action.ApproverName)}</span>
+                                <span class="text-[9px] text-slate-400 font-medium mt-0.5">${escapeHtml(action.ApproverDesignation)} &bull; Step ${action.StepNumber}</span>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                cycleHtml += '<span class="text-[10px] italic text-slate-400">Direct Processed</span>';
+            }
+            cycleHtml += '</div>';
 
-            // Visual Status Badge
             const statusBadge = req.Status === 'Approved' 
-                ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px] uppercase tracking-wider">
-                    <i class="ph-bold ph-check-circle text-xs"></i> Approved
-                   </span>`
-                : `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[10px] uppercase tracking-wider">
-                    <i class="ph-bold ph-x-circle text-xs"></i> Rejected
-                   </span>`;
+                ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px] uppercase tracking-wider"><i class="ph-bold ph-check-circle text-xs"></i> Approved</span>`
+                : `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[10px] uppercase tracking-wider"><i class="ph-bold ph-x-circle text-xs"></i> Rejected</span>`;
 
             return `
                 <tr class="hover:bg-slate-50/75 transition-colors">
@@ -333,32 +470,13 @@
                             </div>
                         </div>
                     </td>
-                    
-                    <td class="px-4 py-4 whitespace-nowrap">
-                        ${categoryBadge}
-                    </td>
-                    
-                    <td class="px-4 py-4 whitespace-nowrap">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-slate-700">${startStr} - ${endStr}</span>
-                            <span class="text-[10px] font-medium text-slate-400 mt-1 truncate max-w-[150px]" title="${escapeHtml(req.Reason)}">${escapeHtml(req.Reason)}</span>
-                        </div>
-                    </td>
-                    
-                    <td class="px-4 py-4 text-center whitespace-nowrap">
-                        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold text-xs tracking-tight border border-slate-200/50">
-                            ${parseFloat(req.RequestedDays).toFixed(1)} <span class="font-medium text-slate-500 text-[10px]">Days</span>
-                        </span>
-                    </td>
-                    
-                    <td class="px-5 py-4 text-right whitespace-nowrap">
-                        <div class="flex flex-col items-end gap-1.5">
-                            ${statusBadge}
-                            <span class="text-[9px] font-semibold text-slate-400">Actioned: ${actionDateStr}</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
+                    <td class="px-4 py-4 whitespace-nowrap text-xs font-semibold text-slate-500">${escapeHtml(req.BranchName)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap">${categoryBadge}</td>
+                    <td class="px-4 py-4 whitespace-nowrap flex flex-col"><span class="text-xs font-bold text-slate-700">${startStr} - ${endStr}</span><span class="text-[10px] text-slate-400 italic truncate max-w-[120px]" title="${escapeHtml(req.Reason)}">${escapeHtml(req.Reason)}</span></td>
+                    <td class="px-4 py-4 text-center whitespace-nowrap font-bold text-slate-800">${parseFloat(req.RequestedDays).toFixed(1)} <span class="text-[10px] font-medium text-slate-400">Days</span></td>
+                    <td class="px-4 py-4 whitespace-nowrap">${cycleHtml}</td>
+                    <td class="px-5 py-4 text-right whitespace-nowrap">${statusBadge}</td>
+                </tr>`;
         }).join('');
     }
 </script>

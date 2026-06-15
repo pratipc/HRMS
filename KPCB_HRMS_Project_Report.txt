@@ -1,0 +1,58 @@
+Subject: Project Progress Report: KPCB HRMS Phase 3 & 4 Completion
+
+Dear Team,
+
+I am writing to provide a comprehensive update on the development progress of the KPCB HRMS (Human Resource Management System). Over the recent sessions, we have successfully moved the application from a static structure to a fully dynamic, data-driven system while strictly adhering to our "Thin API / Thick DB" architectural mandate.
+
+### **1. Core Features Implemented:**
+
+*   **Dynamic Leave Approval Workflow:**
+    - Implemented a branch-specific, sequential approval system.
+    - Admins can now configure multi-step approval chains (e.g., Branch Manager -> HO Admin) for every individual branch.
+    - Integrated Head Office (HO) vs. Branch Office logic: Branch offices can use local or HO approvers, while HO is restricted to internal personnel.
+    - Added a "Bulk Apply" feature to sync workflow configurations across all branch offices instantly.
+
+*   **Attendance & "My Attendance" Ledger:**
+    - Launched the "My Attendance" module for all employees (including Admins).
+    - Features a professional, month-wise grid view with live biometric logs, punch times, and approved leave integration.
+    - Enhanced the ingestion engine to be branch-aware; the system now tracks which physical branch a punch originated from.
+
+*   **Advanced Role-Based Access Control (RBAC):**
+    - Created the "User Role Assignments" module for managing Application Roles (Maker/Checker/Admin).
+    - Fully segregated the sidebar navigation so users (Payroll, Attendance, Employee) only see authorized modules.
+    - Upgraded layouts (admin_base and employee_base) to be context-aware, preventing "context switching" when specialized users access management features.
+
+*   **Payroll & Allowance Master:**
+    - Standardized "Monthly Allowance" configurations.
+    - Implemented a robust Saturday Allowance Rates system with designation-based editing.
+    - Linked designation renames in the payroll module to a global update in the Employee Directory to maintain data integrity.
+
+*   **Data-Driven Dashboards:**
+    - Both Admin and Employee dashboards now pull 100% live data.
+    - Implemented "Self-Healing" balance seeding: The system automatically generates missing leave category balances for employees upon login based on bank policy.
+
+### **2. Technical Challenges & Resolutions:**
+
+*   **The SQLAlchemy ResourceClosedError (f405):**
+    - *Challenge:* We faced a recurring issue where SQL Server Stored Procedures returned multiple status messages (like 'Rows Affected'), causing the Python SQLAlchemy driver to crash before reaching the actual data row.
+    - *Resolution:* Implemented a defensive result-set consumer in the repository layer that exhaustively sifts through all SQL messages until the canonical result is found.
+
+*   **Database Schema & Truncation Errors:**
+    - *Challenge:* Complex workflow states (e.g., "Pending Next Approver") were causing truncation errors in the legacy 20-character status columns.
+    - *Resolution:* Performed a hot-migration of the `LeaveApplications` and `LeaveActionLog` tables to support 50-character status strings and added `BranchID` to the `Attendance` table for cross-branch audit trails.
+
+*   **Context Persistence for Specialized Roles:**
+    - *Challenge:* Users with dual roles (e.g., a Manager who is also a Payroll User) were losing their sidebar navigation when navigating between the Employee and Admin portals.
+    - *Resolution:* Refactored the template engine to use dynamic Jinja2 inheritance, ensuring the "Employee Portal" shell wraps management modules for non-admin users.
+
+### **3. Database Integrity & Security:**
+*   Implemented `sp_SetHeadOffice` to ensure only one branch can hold the Head Office tag.
+*   Enforced branch-tagging validation in `sp_ApplyLeave` to prevent "Ghost Applications" from untagged users.
+*   Completed full codebase and database backups (`KPCB_HRMS_DB_20260612_Final.bak`) to secure all work.
+
+The system is now robust, scalable, and ready for user acceptance testing (UAT).
+
+Best regards,
+
+Gemini CLI
+(Development Lead)

@@ -69,6 +69,11 @@
                 Dashboard
             </a>
             
+            <a href="/employee/my-attendance" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-clock text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                My Attendance
+            </a>
+
             <a href="/admin/employees" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-users text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Employee Directory
@@ -92,6 +97,16 @@
             <a href="/admin/leave-master" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
                 <i class="ph ph-sliders text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
                 Leave Policies
+            </a>
+            
+            <a href="/admin/leave-workflow" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-git-branch text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Leave Workflows
+            </a>
+
+            <a href="/admin/dashboard?action=apply" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100/50 hover:text-indigo-700 transition-all group">
+                <i class="ph ph-calendar-plus text-xl text-slate-400 group-hover:text-indigo-600 transition-colors"></i> 
+                Apply Leave
             </a>
             {% endif %}
             
@@ -159,12 +174,12 @@
                 <!-- User Profile Dropdown -->
                 <div class="flex items-center gap-3 cursor-pointer group">
                     <div class="text-right hidden sm:block">
-                        <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ user.username if user and user.username else 'System User' }}</p>
-                        <p class="text-xs text-slate-500 font-semibold">{{ user.role if user and user.role else 'Admin' }}</p>
+                        <p class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ user.full_name if user and user.full_name else (user.username if user and user.username else 'System User') }}</p>
+                        <p class="text-xs text-slate-500 font-semibold">{{ user.role if user and user.role else 'Admin' }} &bull; {{ user.designation if user and user.designation else 'No Designation' }} &bull; {{ user.branch_name if user and user.branch_name else 'No Branch' }}</p>
                     </div>
                     <div class="relative">
                         <div class="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shadow-md group-hover:bg-indigo-600 transition-colors">
-                            {{ (user.username[0] | upper) if user and user.username else 'A' }}
+                            {{ (user.full_name[0] | upper) if user and user.full_name else ((user.username[0] | upper) if user and user.username else 'A') }}
                         </div>
                         <div class="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>

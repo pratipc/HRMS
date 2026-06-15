@@ -1,0 +1,349 @@
+<!-- File Name: leave_workflow.html -->
+<!-- Location: kpcb_hrms/app/templates/admin/leave_workflow.html -->
+{% extends 'layouts/admin_base.html' if user.role == 'Admin' else 'layouts/employee_base.html' %}
+
+{% block header_title %}Leave Approval Workflows{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row justify-between items-center glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">Dynamic Workflow Configuration</h2>
+            <p class="text-sm text-slate-500">Set up sequential leave approval chains for each branch.</p>
+        </div>
+        
+        <div class="flex items-center gap-3 w-full lg:w-auto">
+            <div class="relative flex-1 lg:w-64">
+                <i class="ph-bold ph-buildings absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <select id="branchSelector" onchange="loadWorkflow()" class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm bg-white appearance-none cursor-pointer">
+                    <option value="">Select a Branch...</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Builder -->
+    <div id="workflowContainer" class="hidden glass-panel rounded-2xl shadow-sm border border-slate-200 p-6 bg-white relative">
+        <!-- Loading State -->
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10 hidden rounded-2xl">
+            <i class="ph-bold ph-spinner animate-spin text-4xl mb-3 text-indigo-500"></i>
+            <p class="font-medium text-slate-500">Loading Configuration...</p>
+        </div>
+
+        <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+            <h3 class="text-lg font-bold text-slate-800" id="branchWorkflowTitle">Workflow Configuration</h3>
+            <button onclick="addStep()" class="px-4 py-2 bg-indigo-50 text-indigo-700 text-sm font-bold rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2">
+                <i class="ph-bold ph-plus"></i> Add Approver
+            </button>
+        </div>
+
+        <div id="stepsContainer" class="space-y-4 mb-6">
+            <!-- Steps will be injected here -->
+        </div>
+
+        <div id="workflowMessage" class="hidden mb-4 p-3 text-sm rounded-lg border font-medium"></div>
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="applyToAll" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                <label for="applyToAll" class="text-sm font-semibold text-slate-600 cursor-pointer">Apply this exact sequence to all Branch Offices</label>
+            </div>
+            <button onclick="saveWorkflow()" id="btnSaveWorkflow" class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2">
+                <i class="ph-bold ph-floppy-disk"></i> Save Workflow
+            </button>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="glass-panel p-12 rounded-2xl border border-slate-200 text-center">
+        <i class="ph-duotone ph-git-branch text-5xl text-slate-300 mb-3"></i>
+        <h3 class="text-lg font-bold text-slate-700">No Branch Selected</h3>
+        <p class="text-slate-500 mt-1 text-sm">Please select a branch from the dropdown above to configure its leave approval workflow.</p>
+    </div>
+</div>
+
+<!-- Approver Selection Modal -->
+<div id="approverModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden flex flex-col max-h-[80vh]">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-users text-indigo-600"></i> Select Approver
+            </h3>
+            <button onclick="closeApproverModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <div class="p-4 border-b border-slate-100 shrink-0 relative">
+            <i class="ph-bold ph-magnifying-glass absolute left-7 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="approverSearch" onkeyup="filterApprovers()" placeholder="Search by name, code or designation..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm transition-all">
+        </div>
+        <div class="overflow-y-auto p-4 flex-1 bg-slate-50/50" id="approverListContainer">
+            <!-- Approvers will be injected here -->
+        </div>
+        <div class="px-6 py-4 border-t border-slate-100 flex justify-end shrink-0 bg-white">
+            <button onclick="closeApproverModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let eligibleApprovers = [];
+    let currentWorkflow = [];
+    let isHeadOfficeSelected = false;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        loadBranches();
+    });
+
+    async function loadBranches() {
+        try {
+            const res = await fetch('/admin/api/branches');
+            const branches = await res.json();
+            const selector = document.getElementById('branchSelector');
+            branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.dataset.isHo = b.IsHeadOffice;
+                opt.textContent = `${b.BranchName} ${b.IsHeadOffice ? '(Head Office)' : '(Branch)'}`;
+                selector.appendChild(opt);
+            });
+        } catch (err) {
+            console.error("Error loading branches", err);
+        }
+    }
+
+    async function loadWorkflow() {
+        const branchSelector = document.getElementById('branchSelector');
+        const branchId = branchSelector.value;
+        const container = document.getElementById('workflowContainer');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (!branchId) {
+            container.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            return;
+        }
+
+        const selectedOption = branchSelector.options[branchSelector.selectedIndex];
+        isHeadOfficeSelected = selectedOption.dataset.isHo === 'true' || selectedOption.dataset.isHo === '1';
+        document.getElementById('branchWorkflowTitle').innerText = `${selectedOption.text.split(' (')[0]} Workflow`;
+
+        // Hide/show the "Apply to All" checkbox based on branch type
+        const applyToAllContainer = document.getElementById('applyToAll').parentElement;
+        if (isHeadOfficeSelected) {
+            applyToAllContainer.style.display = 'none';
+            document.getElementById('applyToAll').checked = false;
+        } else {
+            applyToAllContainer.style.display = 'flex';
+        }
+
+        container.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        document.getElementById('loadingState').classList.remove('hidden');
+        document.getElementById('workflowMessage').classList.add('hidden');
+
+        try {
+            // 1. Fetch Eligible Approvers for this branch
+            const appRes = await fetch(`/admin/api/leaves/workflow/${branchId}/approvers`);
+            eligibleApprovers = await appRes.json();
+
+            // 2. Fetch existing workflow
+            const flowRes = await fetch(`/admin/api/leaves/workflow/${branchId}`);
+            currentWorkflow = await flowRes.json();
+
+            renderSteps();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to load workflow data.');
+        } finally {
+            document.getElementById('loadingState').classList.add('hidden');
+        }
+    }
+
+    function renderSteps() {
+        const container = document.getElementById('stepsContainer');
+        container.innerHTML = '';
+        
+        if (currentWorkflow.length === 0) {
+            container.innerHTML = `<div class="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">No approvers configured. Add the first step.</div>`;
+            return;
+        }
+
+        currentWorkflow.forEach((step, index) => {
+            const stepNum = index + 1;
+            // Force sequential numbering visually and logically
+            step.StepNumber = stepNum;
+
+            let selectedName = '-- Select Approver --';
+            if (step.ApproverEmployeeID) {
+                const emp = eligibleApprovers.find(e => e.EmployeeID === step.ApproverEmployeeID);
+                if (emp) {
+                    selectedName = `${emp.EmployeeCode} - ${escapeHtml(emp.FirstName)} ${escapeHtml(emp.LastName)}`;
+                }
+            }
+
+            const html = `
+                <div class="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
+                    <div class="flex-shrink-0 h-10 w-10 bg-indigo-100 text-indigo-700 font-black rounded-lg flex items-center justify-center text-lg">
+                        ${stepNum}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wide">Approver</label>
+                        <button onclick="openApproverModal(${index})" class="w-full text-left pl-4 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold text-slate-700 flex justify-between items-center transition-colors hover:bg-slate-100">
+                            <span class="truncate pr-2">${selectedName}</span>
+                            <i class="ph-bold ph-caret-down text-slate-400 shrink-0"></i>
+                        </button>
+                    </div>
+                    <button onclick="removeStep(${index})" class="flex-shrink-0 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remove Step">
+                        <i class="ph-bold ph-trash text-xl"></i>
+                    </button>
+                    ${index < currentWorkflow.length - 1 ? '<div class="absolute -bottom-4 left-9 w-0.5 h-4 bg-slate-200"></div>' : ''}
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        });
+    }
+
+    let currentStepIndexForModal = null;
+
+    function openApproverModal(index) {
+        currentStepIndexForModal = index;
+        document.getElementById('approverSearch').value = '';
+        renderApproverList('');
+        const modal = document.getElementById('approverModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeApproverModal() {
+        const modal = document.getElementById('approverModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        currentStepIndexForModal = null;
+    }
+
+    function filterApprovers() {
+        const term = document.getElementById('approverSearch').value.toLowerCase();
+        renderApproverList(term);
+    }
+
+    function renderApproverList(searchTerm) {
+        const container = document.getElementById('approverListContainer');
+        container.innerHTML = '';
+
+        const filtered = eligibleApprovers.filter(emp => {
+            if (!searchTerm) return true;
+            return (emp.FirstName + ' ' + emp.LastName).toLowerCase().includes(searchTerm) ||
+                   (emp.EmployeeCode || '').toLowerCase().includes(searchTerm) ||
+                   (emp.Designation || '').toLowerCase().includes(searchTerm);
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="text-center text-slate-500 py-8 text-sm font-medium">No approvers found matching your search.</div>';
+            return;
+        }
+
+        const currentApproverId = currentWorkflow[currentStepIndexForModal].ApproverEmployeeID;
+
+        const html = filtered.map(emp => {
+            const isSelected = emp.EmployeeID === currentApproverId;
+            return `
+                <div onclick="selectApprover(${emp.EmployeeID})" class="cursor-pointer mb-2 p-3 rounded-xl border ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'} flex items-center justify-between transition-all group">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-100 to-blue-50 border border-indigo-200 flex items-center justify-center font-bold text-indigo-700 text-sm shrink-0">
+                            ${emp.FirstName[0].toUpperCase()}${emp.LastName ? emp.LastName[0].toUpperCase() : ''}
+                        </div>
+                        <div>
+                            <div class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                ${escapeHtml(emp.FirstName)} ${escapeHtml(emp.LastName)}
+                                <span class="inline-flex px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono font-bold text-slate-500 border border-slate-200">${emp.EmployeeCode}</span>
+                            </div>
+                            <div class="text-xs text-slate-500 font-medium mt-0.5">${escapeHtml(emp.Designation)} &bull; ${escapeHtml(emp.BranchName)}</div>
+                        </div>
+                    </div>
+                    ${isSelected ? '<i class="ph-fill ph-check-circle text-xl text-indigo-600"></i>' : '<i class="ph-bold ph-plus-circle text-xl text-slate-300 group-hover:text-indigo-400 transition-colors"></i>'}
+                </div>
+            `;
+        }).join('');
+        container.innerHTML = html;
+    }
+
+    function selectApprover(empId) {
+        if (currentStepIndexForModal !== null) {
+            currentWorkflow[currentStepIndexForModal].ApproverEmployeeID = parseInt(empId);
+            renderSteps();
+        }
+        closeApproverModal();
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+    function addStep() {
+        currentWorkflow.push({
+            StepNumber: currentWorkflow.length + 1,
+            ApproverEmployeeID: null
+        });
+        renderSteps();
+    }
+
+    function removeStep(index) {
+        currentWorkflow.splice(index, 1);
+        renderSteps();
+    }
+
+    function updateStepApprover(index, empId) {
+        currentWorkflow[index].ApproverEmployeeID = empId ? parseInt(empId) : null;
+    }
+
+    async function saveWorkflow() {
+        const branchId = document.getElementById('branchSelector').value;
+        const applyToAll = document.getElementById('applyToAll').checked;
+        const btn = document.getElementById('btnSaveWorkflow');
+        const msg = document.getElementById('workflowMessage');
+        
+        // Validate
+        for (let i = 0; i < currentWorkflow.length; i++) {
+            if (!currentWorkflow[i].ApproverEmployeeID) {
+                alert(`Please select an approver for Step ${i + 1}.`);
+                return;
+            }
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving...';
+        msg.classList.add('hidden');
+
+        try {
+            const res = await fetch(`/admin/api/leaves/workflow/${branchId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    workflow: currentWorkflow,
+                    applyToAll: applyToAll
+                })
+            });
+            const data = await res.json();
+            
+            msg.classList.remove('hidden');
+            if (res.ok) {
+                msg.className = "mb-4 p-3 text-sm rounded-lg border font-medium bg-emerald-50 text-emerald-700 border-emerald-100";
+                msg.innerText = data.message || "Workflow saved successfully!";
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } else {
+                msg.className = "mb-4 p-3 text-sm rounded-lg border font-medium bg-red-50 text-red-600 border-red-100";
+                msg.innerText = data.error || "Failed to save workflow.";
+            }
+        } catch (e) {
+            msg.classList.remove('hidden');
+            msg.className = "mb-4 p-3 text-sm rounded-lg border font-medium bg-red-50 text-red-600 border-red-100";
+            msg.innerText = "Server communication error.";
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Workflow';
+        }
+    }
+</script>
+{% endblock %}

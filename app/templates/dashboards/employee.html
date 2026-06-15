@@ -1,6 +1,6 @@
 <!-- File Name: employee.html -->
 <!-- Location: kpcb_hrms/app/templates/dashboards/employee.html -->
-{% extends "layouts/employee_base.html" %}
+{% extends 'layouts/admin_base.html' if user.role == 'Admin' else 'layouts/employee_base.html' %}
 
 {% block header_title %}My Dashboard{% endblock %}
 
@@ -22,7 +22,7 @@
         <div class="glass-panel p-6 rounded-2xl border shadow-sm flex items-center justify-between bg-white/70 hover:bg-white transition-all">
             <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Leaves Taken</p>
-                <h3 class="text-3xl font-black text-slate-800">{{ "%.1f"|format(metrics.LeavesTaken) }} <span class="text-sm font-semibold text-slate-500">Days</span></h3>
+                <h3 id="statLeavesTaken" class="text-3xl font-black text-slate-800">{{ "%.1f"|format(metrics.LeavesTaken) }} <span class="text-sm font-semibold text-slate-500">Days</span></h3>
             </div>
             <div class="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shadow-inner">
                 <i class="ph-bold ph-calendar-minus text-2xl"></i>
@@ -33,7 +33,7 @@
         <div class="glass-panel p-6 rounded-2xl border shadow-sm flex items-center justify-between bg-white/70 hover:bg-white transition-all">
             <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Approval</p>
-                <h3 class="text-3xl font-black text-slate-800">{{ metrics.PendingApprovals }} <span class="text-sm font-semibold text-slate-500">Requests</span></h3>
+                <h3 id="statPendingApprovals" class="text-3xl font-black text-slate-800">{{ metrics.PendingApprovals }} <span class="text-sm font-semibold text-slate-500">Requests</span></h3>
             </div>
             <div class="h-12 w-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-inner">
                 <i class="ph-bold ph-hourglass-high text-2xl"></i>
@@ -44,7 +44,7 @@
         <div class="glass-panel p-6 rounded-2xl border shadow-sm flex items-center justify-between bg-white/70 hover:bg-white transition-all">
             <div>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Leaves Left</p>
-                <h3 class="text-3xl font-black text-emerald-600">{{ "%.1f"|format(metrics.LeavesLeft) }} <span class="text-sm font-semibold text-emerald-500">Days</span></h3>
+                <h3 id="statLeavesLeft" class="text-3xl font-black text-emerald-600">{{ "%.1f"|format(metrics.LeavesLeft) }} <span class="text-sm font-semibold text-emerald-500">Days</span></h3>
             </div>
             <div class="h-12 w-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-inner">
                 <i class="ph-bold ph-calendar-check text-2xl"></i>
@@ -149,9 +149,32 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        loadLeaveSummary();
         loadEmployeeLeaveBalances();
         loadActiveLeaveTypes();
+        
+        // Auto-open modal if redirected from sidebar
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'apply') {
+            openLeaveModal();
+            // Clean up URL without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     });
+
+    async function loadLeaveSummary() {
+        try {
+            const res = await fetch('/employee/api/leave-summary');
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('statLeavesTaken').innerHTML = `${parseFloat(data.LeavesTaken).toFixed(1)} <span class="text-sm font-semibold text-slate-500">Days</span>`;
+                document.getElementById('statPendingApprovals').innerHTML = `${data.PendingApprovals} <span class="text-sm font-semibold text-slate-500">Requests</span>`;
+                document.getElementById('statLeavesLeft').innerHTML = `${parseFloat(data.LeavesLeft).toFixed(1)} <span class="text-sm font-semibold text-emerald-500">Days</span>`;
+            }
+        } catch (err) {
+            console.error("Failed to load leave summary", err);
+        }
+    }
 
     // --- Fetch Live Balances ---
     async function loadEmployeeLeaveBalances() {
@@ -180,12 +203,17 @@
                     const allotted = parseFloat(record.Credited) + parseFloat(record.CarriedForward);
                     const percentUsed = allotted > 0 ? Math.min(100, ((allotted - balance) / allotted) * 100) : 0;
                     
+                    let freqLabel = 'Yearly Available';
+                    if (record.CreditPeriod === 'Half-Yearly') freqLabel = 'Half-Yearly Available';
+                    else if (record.CreditPeriod === 'Quarterly') freqLabel = 'Quarterly Available';
+                    else if (record.CreditPeriod === 'Monthly') freqLabel = 'Monthly Available';
+
                     return `
                     <div class="glass-panel p-5 rounded-2xl border shadow-sm bg-white/70 hover:bg-white transition-all flex flex-col justify-between h-36">
                         <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="font-bold text-slate-800 text-sm leading-snug">${escapeHtml(record.LeaveTypeName)}</h4>
-                                <p class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">Yearly Available</p>
+                                <p class="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">${freqLabel}</p>
                             </div>
                             <span class="px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200/50 text-slate-800 font-extrabold text-base tracking-tight leading-none shadow-sm">
                                 ${balance.toFixed(1)}
@@ -331,8 +359,9 @@
             if (res.ok) {
                 closeLeaveModal();
                 alert(`Success! Leave application submitted. Status: ${data.data.Status}`);
-                // Hot reload employee balance overview cards
+                // Hot reload employee balance overview cards and summary stats
                 loadEmployeeLeaveBalances();
+                loadLeaveSummary();
             } else {
                 errorBox.textContent = data.error || 'Failed to submit application.';
                 errorBox.classList.remove('hidden');

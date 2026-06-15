@@ -20,6 +20,8 @@ class SqlTimeActionRepository(ITimeActionRepository):
         for k, v in sanitized.items():
             if isinstance(v, (datetime.date, datetime.datetime, datetime.time)):
                 sanitized[k] = str(v)
+            elif isinstance(v, (float, complex)) or 'Decimal' in str(type(v)):
+                sanitized[k] = float(v)
         return sanitized
 
     # --- BIOMETRIC INGESTION & ROSTER ---
@@ -29,11 +31,16 @@ class SqlTimeActionRepository(ITimeActionRepository):
         # #CODE CHANGE: Pass result through the sanitizer to prevent 500 errors
         return [self._sanitize_row(row) for row in result]
     
-    def ingest_biometric_data(self, json_punches: str) -> dict:
-        sql = text("EXEC sp_IngestBiometricPunches @JsonData = :JsonPunches")
-        result = self.db_session.execute(sql, {"JsonPunches": json_punches}).mappings().fetchone()
+    def ingest_biometric_data(self, json_punches: str, branch_id: int = None) -> dict:
+        sql = text("EXEC sp_IngestBiometricPunches @JsonData = :JsonPunches, @BranchID = :BranchID")
+        result = self.db_session.execute(sql, {"JsonPunches": json_punches, "BranchID": branch_id}).mappings().fetchone()
         self.db_session.commit()
         return dict(result) if result else {"status": "success"}
+
+    def get_my_attendance_register(self, employee_id: int, year: int, month: int) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetMyAttendanceRegister @EmployeeID = :EmpID, @Year = :Year, @Month = :Month")
+        result = self.db_session.execute(sql, {"EmpID": employee_id, "Year": year, "Month": month}).mappings().all()
+        return [self._sanitize_row(row) for row in result]
 
     def get_daily_attendance_register(self, date_str: str) -> List[Dict[str, Any]]:
         sql = text("EXEC sp_GetDailyAttendanceRegister @RegisterDate = :RegDate")
@@ -62,6 +69,7 @@ class SqlTimeActionRepository(ITimeActionRepository):
     # --- LEAVES ---
     def apply_leave(self, leave_data: Dict[str, Any]) -> Dict[str, Any]:
         sql = text("""
+            SET NOCOUNT ON;
             EXEC sp_ApplyLeave 
                 @EmployeeID = :EmployeeID,
                 @LeaveTypeID = :LeaveTypeID,
@@ -69,15 +77,24 @@ class SqlTimeActionRepository(ITimeActionRepository):
                 @EndDate = :EndDate,
                 @Reason = :Reason
         """)
-        result = self.db_session.execute(sql, {
-            "EmployeeID": leave_data.get('EmployeeID'),
-            "LeaveTypeID": leave_data.get('LeaveTypeID'),
-            "StartDate": leave_data.get('StartDate'),
-            "EndDate": leave_data.get('EndDate'),
-            "Reason": leave_data.get('Reason')
-        }).mappings().fetchone()
-        self.db_session.commit()
-        return dict(result) if result else {}
+        try:
+            result = self.db_session.execute(sql, {
+                "EmployeeID": leave_data.get('EmployeeID'),
+                "LeaveTypeID": leave_data.get('LeaveTypeID'),
+                "StartDate": leave_data.get('StartDate'),
+                "EndDate": leave_data.get('EndDate'),
+                "Reason": leave_data.get('Reason')
+            })
+            
+            row = None
+            if result.returns_rows:
+                row = result.mappings().fetchone()
+            
+            self.db_session.commit()
+            return dict(row) if row else {"Status": "Pending"}
+        except Exception as e:
+            self.db_session.rollback()
+            raise e
     
 
     def get_leave_types(self) -> List[Dict[str, Any]]:
@@ -89,14 +106,14 @@ class SqlTimeActionRepository(ITimeActionRepository):
         sql = text("""
             EXEC sp_InsertLeaveType 
                 @TypeName = :TypeName,
-                @QtyPerYear = :QtyPerYear,
+                @AllowanceQty = :AllowanceQty,
                 @CreditPeriod = :CreditPeriod,
                 @IsCarryForward = :IsCarryForward,
                 @MaxCarryForward = :MaxCarryForward
         """)
         result = self.db_session.execute(sql, {
             "TypeName": type_data.get('TypeName'),
-            "QtyPerYear": type_data.get('QtyPerYear'),
+            "AllowanceQty": type_data.get('AllowanceQty'),
             "CreditPeriod": type_data.get('CreditPeriod'),
             "IsCarryForward": type_data.get('IsCarryForward', False),
             "MaxCarryForward": type_data.get('MaxCarryForward', 0.0)
@@ -109,7 +126,7 @@ class SqlTimeActionRepository(ITimeActionRepository):
             EXEC sp_UpdateLeaveType 
                 @LeaveTypeID = :LeaveTypeID,
                 @TypeName = :TypeName,
-                @QtyPerYear = :QtyPerYear,
+                @AllowanceQty = :AllowanceQty,
                 @CreditPeriod = :CreditPeriod,
                 @IsCarryForward = :IsCarryForward,
                 @MaxCarryForward = :MaxCarryForward
@@ -117,13 +134,33 @@ class SqlTimeActionRepository(ITimeActionRepository):
         result = self.db_session.execute(sql, {
             "LeaveTypeID": type_id,
             "TypeName": type_data.get('TypeName'),
-            "QtyPerYear": type_data.get('QtyPerYear'),
+            "AllowanceQty": type_data.get('AllowanceQty'),
             "CreditPeriod": type_data.get('CreditPeriod'),
             "IsCarryForward": type_data.get('IsCarryForward', False),
             "MaxCarryForward": type_data.get('MaxCarryForward', 0.0)
         }).mappings().fetchone()
         self.db_session.commit()
         return dict(result) if result else {}
+
+    # --- LEAVE APPROVAL WORKFLOW ---
+    def get_leave_approval_workflow(self, branch_id: int) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetLeaveApprovalWorkflow @BranchID = :BranchID")
+        result = self.db_session.execute(sql, {"BranchID": branch_id}).mappings().all()
+        return [dict(row) for row in result]
+
+    def get_eligible_approvers(self, branch_id: int) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetEligibleApprovers @BranchID = :BranchID")
+        result = self.db_session.execute(sql, {"BranchID": branch_id}).mappings().all()
+        return [dict(row) for row in result]
+
+    def save_leave_approval_workflow(self, branch_id: int, workflow_json: str, apply_to_all_branches: bool) -> None:
+        sql = text("EXEC sp_SaveLeaveApprovalWorkflow @BranchID = :BranchID, @WorkflowJson = :WorkflowJson, @ApplyToAllBranchOffices = :ApplyToAllBranchOffices")
+        self.db_session.execute(sql, {
+            "BranchID": branch_id,
+            "WorkflowJson": workflow_json,
+            "ApplyToAllBranchOffices": 1 if apply_to_all_branches else 0
+        })
+        self.db_session.commit()
 
     # --- LEAVE CAPPING ENGINE ---
     def execute_year_end_processing(self, current_year: int, processed_by: str) -> Dict[str, Any]:
@@ -182,25 +219,51 @@ class SqlTimeActionRepository(ITimeActionRepository):
         return dict(result) if result else {}
 
     # --- LEAVE TRANSACTIONS & APPROVALS ---
-    def get_pending_leave_applications(self) -> List[Dict[str, Any]]:
-        sql = text("EXEC sp_GetPendingLeaveApplications")
-        result = self.db_session.execute(sql).mappings().all()
+    def get_pending_leave_applications(self, approver_id: int = None, role: str = None) -> List[Dict[str, Any]]:
+        # If user is Admin, they can see all pending leaves by passing NULL. 
+        # Otherwise, they only see leaves pending their explicit approval.
+        actual_approver_id = None if role == 'Admin' else approver_id
+        
+        sql = text("EXEC sp_GetPendingLeaveApplications @ApproverEmployeeID = :ApproverID")
+        result = self.db_session.execute(sql, {"ApproverID": actual_approver_id}).mappings().all()
         return [dict(row) for row in result]
 
-    def get_processed_leave_applications(self) -> List[Dict[str, Any]]:
-        """Fetches approved/rejected leaves for the Admin audit history."""
-        sql = text("EXEC sp_GetProcessedLeaveApplications")
-        result = self.db_session.execute(sql).mappings().all()
-        return [dict(row) for row in result]
+    def get_processed_leave_applications(self, month: int = None, year: int = None) -> List[Dict[str, Any]]:
+        """Fetches approved/rejected leaves for the Admin history with optional filtering."""
+        sql = text("EXEC sp_GetProcessedLeaveApplications @Month = :Month, @Year = :Year")
+        result = self.db_session.execute(sql, {"Month": month, "Year": year}).mappings().all()
+        return [self._sanitize_row(row) for row in result]
 
-    def process_leave_application(self, application_id: int, status: str) -> Dict[str, Any]:
-        sql = text("EXEC sp_ProcessLeaveApplication @ApplicationID = :ApplicationID, @Status = :Status")
-        result = self.db_session.execute(sql, {
-            "ApplicationID": application_id,
-            "Status": status
-        }).mappings().fetchone()
-        self.db_session.commit()
-        return dict(result) if result else {}
+    def process_leave_application(self, application_id: int, status: str, processed_by_id: int) -> Dict[str, Any]:
+        sql = text("""
+            SET NOCOUNT ON;
+            EXEC sp_ProcessLeaveApplication 
+                @ApplicationID = :ApplicationID, 
+                @Status = :Status, 
+                @ActionTakenByEmployeeID = :ApproverID
+        """)
+        try:
+            result = self.db_session.execute(sql, {
+                "ApplicationID": application_id,
+                "Status": status,
+                "ApproverID": processed_by_id
+            })
+            
+            row = None
+            while True:
+                if result.returns_rows:
+                    data = result.mappings().fetchone()
+                    if data:
+                        row = dict(data)
+                        break
+                if not result.nextset():
+                    break
+            
+            self.db_session.commit()
+            return row if row else {"Status": status}
+        except Exception as e:
+            self.db_session.rollback()
+            raise e
     
     def get_employee_leave_balances_by_id(self, employee_id: int, year: int) -> list:
         """Retrieves active leave balances for a specific employee via Stored Procedure."""

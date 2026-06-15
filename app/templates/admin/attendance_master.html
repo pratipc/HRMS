@@ -87,11 +87,18 @@
                 <div class="space-y-4">
                     <div class="flex items-center justify-between p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
                         <div>
-                            <p class="text-sm font-semibold text-indigo-900">Direct Smart Parsing Enabled</p>
-                            <p class="text-xs text-indigo-700 mt-1">You no longer need a manual template. Simply save your machine's <strong>Monthly_BasicReport.xls</strong> as a <strong>.CSV</strong> file and upload it below. The engine will automatically map the dates and employee codes.</p>
+                            <p class="text-sm font-semibold text-indigo-900">Branch-Aware Ingestion</p>
+                            <p class="text-xs text-indigo-700 mt-1">Please select the branch this biometric machine belongs to. All logs will be tagged to this location.</p>
                         </div>
                     </div>
                     
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Target Branch <span class="text-red-500">*</span></label>
+                        <select id="bioBranch" required class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700 appearance-none cursor-pointer">
+                            <option value="">-- Select Branch --</option>
+                        </select>
+                    </div>
+
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1.5">Select Machine Report (.csv) <span class="text-red-500">*</span></label>
                         <input type="file" id="bioFile" accept=".csv" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-xs file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
@@ -144,10 +151,29 @@
 <script>
     let activeTab = 'register';
     let fullRosterData = [];
+    let branches = [];
 
     document.addEventListener("DOMContentLoaded", () => {
         loadMonthlyRoster();
+        loadBranches();
     });
+
+    async function loadBranches() {
+        try {
+            const res = await fetch('/admin/api/branches');
+            branches = await res.json();
+            const bioSelector = document.getElementById('bioBranch');
+            
+            branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.BranchID;
+                opt.textContent = b.BranchName;
+                bioSelector.appendChild(opt);
+            });
+        } catch (e) {
+            console.error("Error loading branches", e);
+        }
+    }
 
     function setTab(tab) {
         activeTab = tab;
@@ -306,12 +332,14 @@
         const err = document.getElementById('biometricError');
         const suc = document.getElementById('biometricSuccess');
         const file = document.getElementById('bioFile').files[0];
+        const branchId = document.getElementById('bioBranch').value;
 
         btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Parsing Logs...';
         err.classList.add('hidden'); suc.classList.add('hidden');
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('branch_id', branchId);
 
         try {
             const res = await fetch('/admin/api/attendance/biometric-upload', {
@@ -344,12 +372,14 @@
         const err = document.getElementById('manualError');
         const suc = document.getElementById('manualSuccess');
         const file = document.getElementById('manualFile').files[0];
+        const branchId = document.getElementById('bioBranch').value; // Reusing the same branch selector for simplicity if they are together
 
         btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Parsing...';
         err.classList.add('hidden'); suc.classList.add('hidden');
 
         const formData = new FormData();
         formData.append('file', file);
+        if (branchId) formData.append('branch_id', branchId);
 
         try {
             const res = await fetch('/admin/api/attendance/manual-upload', {

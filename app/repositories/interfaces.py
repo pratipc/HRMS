@@ -74,7 +74,13 @@ class ITimeActionRepository(ABC):
     def get_monthly_attendance_register(self, month_str: str) -> List[Dict[str, Any]]: pass
     
     @abstractmethod
-    def ingest_biometric_data(self, json_punches: str) -> dict: pass
+    def ingest_biometric_data(self, json_punches: str, branch_id: int = None) -> dict:
+        pass
+
+    @abstractmethod
+    def get_my_attendance_register(self, employee_id: int, year: int, month: int) -> List[Dict[str, Any]]:
+        pass
+
 
     # --- Attendance ---
     @abstractmethod
@@ -110,11 +116,28 @@ class ITimeActionRepository(ABC):
 
     # --- Leave Transactions & Approvals ---
     @abstractmethod
-    def get_pending_leave_applications(self) -> List[Dict[str, Any]]:
+    def get_pending_leave_applications(self, approver_id: int = None, role: str = None) -> List[Dict[str, Any]]:
         pass
 
     @abstractmethod
-    def process_leave_application(self, application_id: int, status: str) -> Dict[str, Any]:
+    def get_processed_leave_applications(self, month: int = None, year: int = None) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def process_leave_application(self, application_id: int, status: str, processed_by_id: int) -> Dict[str, Any]:
+        pass
+
+    # --- Leave Approval Workflow ---
+    @abstractmethod
+    def get_leave_approval_workflow(self, branch_id: int) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def get_eligible_approvers(self, branch_id: int) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def save_leave_approval_workflow(self, branch_id: int, workflow_json: str, apply_to_all_branches: bool) -> None:
         pass
 
     # --- Leave Capping Engine ---

@@ -302,13 +302,17 @@ class TimeActionService:
         except Exception as e:
             error_msg = str(e)
             
-            # Catch strict SQL Raiserror validations (like early end dates or balance overdrafts)
+            # Smart SQL error scraper: Extract the final message after the last bracket or [SQL Server] tag
+            if '[SQL Server]' in error_msg:
+                clean_msg = error_msg.split('[SQL Server]')[-1]
+                if ' (' in clean_msg: clean_msg = clean_msg.split(' (')[0]
+                clean_msg = clean_msg.replace("')", "").replace(".\"", "").strip()
+                raise ValueError(clean_msg)
+            
             if 'earlier than Start Date' in error_msg:
                 raise ValueError("End Date cannot be earlier than Start Date.")
             elif 'Insufficient leave balance' in error_msg:
-                # Scrape out the SQL error block cleanly to display to the user
-                clean_msg = error_msg.split(']')[-1].strip() if ']' in error_msg else error_msg
-                raise ValueError(clean_msg)
+                raise ValueError("Insufficient leave balance for this request.")
                 
             raise RuntimeError(f"Database error during leave application: {error_msg}")
 
@@ -326,23 +330,37 @@ class TimeActionService:
         target_year = year if year else datetime.now().year
         return self.time_repo.get_employee_leave_summary(employee_id, target_year)
 
-    def fetch_pending_leave_applications(self) -> List[Dict[str, Any]]:
+    def fetch_pending_leave_applications(self, approver_id: int = None, role: str = None) -> List[Dict[str, Any]]:
         """Retrieves all active, unprocessed 'Pending' leave applications for manager review."""
-        return self.time_repo.get_pending_leave_applications()
+        return self.time_repo.get_pending_leave_applications(approver_id, role)
 
-    def fetch_processed_leave_applications(self) -> List[Dict[str, Any]]:
+    def fetch_processed_leave_applications(self, month: int = None, year: int = None) -> List[Dict[str, Any]]:
         """Retrieves historical approved/rejected leave applications for audit."""
-        return self.time_repo.get_processed_leave_applications()
+        import json
+        apps = self.time_repo.get_processed_leave_applications(month, year)
 
-    def process_leave_application(self, application_id: int, status: str) -> Dict[str, Any]:
+        # Parse the ActionHistory JSON string for each application
+        for app in apps:
+            if app.get('ActionHistory'):
+                try:
+                    app['ActionHistory'] = json.loads(app['ActionHistory'])
+                except Exception:
+                    app['ActionHistory'] = []
+            else:
+                app['ActionHistory'] = []
+        return apps
+
+    def process_leave_application(self, application_id: int, status: str, processed_by_id: int) -> Dict[str, Any]:
         """Approves or Rejects a leave request and triggers live ledger recalculations."""
         if not application_id:
             raise ValueError("Application ID is required.")
         if status not in ['Approved', 'Rejected']:
             raise ValueError("Status must be either Approved or Rejected.")
-            
+        if not processed_by_id:
+            raise ValueError("Approver ID is required.")
+
         try:
-            return self.time_repo.process_leave_application(application_id, status)
+            return self.time_repo.process_leave_application(application_id, status, processed_by_id)
         except Exception as e:
             error_msg = str(e)
             
@@ -364,6 +382,37 @@ class TimeActionService:
             raise RuntimeError(f"Failed to process leave application: {error_msg}")
 
     # ---------------------------------------------------------
+    # LEAVE APPROVAL WORKFLOW
+    # ---------------------------------------------------------
+    def get_leave_approval_workflow(self, branch_id: int) -> List[Dict[str, Any]]:
+        return self.time_repo.get_leave_approval_workflow(branch_id)
+
+    def get_eligible_approvers(self, branch_id: int) -> List[Dict[str, Any]]:
+        return self.time_repo.get_eligible_approvers(branch_id)
+
+    def save_leave_approval_workflow(self, branch_id: int, workflow_data: list, apply_to_all_branches: bool) -> None:
+        """Saves sequential workflow mapping for a branch."""
+        import json
+        if not workflow_data:
+            raise ValueError("Workflow must have at least one step.")
+        
+        for step in workflow_data:
+            if 'StepNumber' not in step or 'ApproverEmployeeID' not in step:
+                raise ValueError("Each workflow step must contain a StepNumber and an ApproverEmployeeID.")
+                
+        # Validate that the sequence is continuous
+        sorted_steps = sorted([int(s['StepNumber']) for s in workflow_data])
+        if sorted_steps[0] != 1 or sorted_steps != list(range(1, len(sorted_steps) + 1)):
+            raise ValueError("Workflow steps must be sequential starting from 1 (e.g. 1, 2, 3).")
+
+        workflow_json = json.dumps(workflow_data)
+        self.time_repo.save_leave_approval_workflow(branch_id, workflow_json, apply_to_all_branches)
+
+    def fetch_my_attendance_register(self, employee_id: int, year: int, month: int) -> List[Dict[str, Any]]:
+        """Retrieves personal attendance ledger for an employee for a specific month."""
+        return self.time_repo.get_my_attendance_register(employee_id, year, month)
+
+    # ---------------------------------------------------------
     # LEAVE POLICY CONFIGURATION
     # ---------------------------------------------------------
     def fetch_leave_types(self) -> List[Dict[str, Any]]:
@@ -372,21 +421,21 @@ class TimeActionService:
 
     def create_leave_policy(self, type_data: dict) -> Dict[str, Any]:
         """Creates a new global leave type category."""
-        required_fields = ['TypeName', 'QtyPerYear', 'CreditPeriod']
+        required_fields = ['TypeName', 'AllowanceQty', 'CreditPeriod']
         missing = [field for field in required_fields if not type_data.get(field)]
         if missing:
             raise ValueError(f"Missing required fields: {', '.join(missing)}")
         
         try:
-            qty = float(type_data['QtyPerYear'])
+            qty = float(type_data['AllowanceQty'])
             max_cf = float(type_data.get('MaxCarryForward', 0))
             
             if qty <= 0:
-                raise ValueError("Total Days/Year must be greater than zero.")
+                raise ValueError("Allowance quantity must be greater than zero.")
             if max_cf < 0:
                 raise ValueError("Carry-Forward limit cannot be negative.")
                 
-            type_data['QtyPerYear'] = qty
+            type_data['AllowanceQty'] = qty
             type_data['MaxCarryForward'] = max_cf
             return self.time_repo.add_leave_type(type_data)
         except ValueError as ve:
@@ -396,21 +445,21 @@ class TimeActionService:
 
     def modify_leave_policy(self, type_id: int, type_data: dict) -> Dict[str, Any]:
         """Updates configurations for an existing leave type."""
-        required_fields = ['TypeName', 'QtyPerYear', 'CreditPeriod']
+        required_fields = ['TypeName', 'AllowanceQty', 'CreditPeriod']
         missing = [field for field in required_fields if not type_data.get(field)]
         if missing:
             raise ValueError(f"Missing required fields: {', '.join(missing)}")
         
         try:
-            qty = float(type_data['QtyPerYear'])
+            qty = float(type_data['AllowanceQty'])
             max_cf = float(type_data.get('MaxCarryForward', 0))
             
             if qty <= 0:
-                raise ValueError("Total Days/Year must be greater than zero.")
+                raise ValueError("Allowance quantity must be greater than zero.")
             if max_cf < 0:
                 raise ValueError("Carry-Forward limit cannot be negative.")
                 
-            type_data['QtyPerYear'] = qty
+            type_data['AllowanceQty'] = qty
             type_data['MaxCarryForward'] = max_cf
             return self.time_repo.update_leave_type(type_id, type_data)
         except ValueError as ve:

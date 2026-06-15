@@ -14,7 +14,7 @@ from app.services.time_action_service import TimeActionService
 employee_bp = Blueprint('employee', __name__, url_prefix='/employee')
 
 @employee_bp.route('/dashboard')
-@role_required('Employee', 'Payroll User', 'Attendance User')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
 def dashboard():
     """Renders the Employee Dashboard."""
     employee_id = session.get('employee_id')
@@ -30,11 +30,34 @@ def dashboard():
         
     return render_template('dashboards/employee.html', user=session, metrics=metrics)
 
+@employee_bp.route('/my-attendance')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
+def my_attendance_page():
+    """Renders the personal attendance ledger view."""
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    return render_template('employee/my_attendance.html', user=session, today=today)
+
 # ---------------------------------------------------------
 # ATTENDANCE API ROUTES
 # ---------------------------------------------------------
+@employee_bp.route('/api/attendance/my-register', methods=['GET'])
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
+def get_my_attendance():
+    """API to fetch monthly personal attendance records."""
+    employee_id = session.get('employee_id')
+    month_str = request.args.get('month', datetime.date.today().strftime('%Y-%m'))
+    year, month = map(int, month_str.split('-'))
+    
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    
+    try:
+        register = service.fetch_my_attendance_register(employee_id, year, month)
+        return jsonify(register), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 @employee_bp.route('/api/attendance/punch-in', methods=['POST'])
-@role_required('Employee', 'Payroll User', 'Attendance User')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
 def punch_in():
     """API for an employee to record their daily punch-in time."""
     # We securely grab the employee_id from the session, NOT from user input!
@@ -54,8 +77,22 @@ def punch_in():
 # ---------------------------------------------------------
 # LEAVE MANAGEMENT API ROUTES
 # ---------------------------------------------------------
+@employee_bp.route('/api/leave-summary', methods=['GET'])
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
+def get_leave_summary():
+    """API to fetch high-level leave summary metrics for the dashboard."""
+    employee_id = session.get('employee_id')
+    current_year = datetime.datetime.now().year
+    repo = SqlTimeActionRepository(db.session)
+    service = TimeActionService(repo)
+    try:
+        metrics = service.get_leave_summary(employee_id, current_year)
+        return jsonify(metrics), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @employee_bp.route('/api/leave-balances', methods=['GET'])
-@role_required('Employee', 'Payroll User', 'Attendance User')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
 def get_leave_balances():
     """API to fetch the active leave balances for the logged-in employee."""
     employee_id = session.get('employee_id')
@@ -71,7 +108,7 @@ def get_leave_balances():
         return jsonify({"error": str(e)}), 500
 
 @employee_bp.route('/api/leave-types', methods=['GET'])
-@role_required('Employee', 'Payroll User', 'Attendance User')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
 def get_leave_types():
     """API to fetch the list of dynamic leave categories for dropdown configuration."""
     repo = SqlTimeActionRepository(db.session)
@@ -83,7 +120,7 @@ def get_leave_types():
         return jsonify({"error": str(e)}), 500
 
 @employee_bp.route('/api/leave/apply', methods=['POST'])
-@role_required('Employee', 'Payroll User', 'Attendance User')
+@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
 def apply_leave():
     """API for an employee to submit a leave request."""
     data = request.json

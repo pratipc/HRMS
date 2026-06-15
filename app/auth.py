@@ -51,6 +51,9 @@ def login():
         session['employee_id'] = user_data['EmployeeID']
         session['role'] = user_data['Role'] 
         session['username'] = user_data['Username']
+        session['full_name'] = f"{user_data['FirstName']} {user_data['LastName']}"
+        session['designation'] = user_data.get('Designation', 'Unknown')
+        session['branch_name'] = user_data.get('BranchName', 'Unknown')
 
         # Determine Dashboard URL based on Role
         if user_data['Role'] == 'Admin':
