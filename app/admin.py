@@ -442,7 +442,113 @@ def edit_holiday(holiday_id):
         return jsonify({"error": "An internal server error occurred"}), 500
 
 # ---------------------------------------------------------
-# LEAVE MASTER UI & API CONFIGURATION ROUTES
+# DYNAMIC PAYROLL SLABS & MANDATES API
+# ---------------------------------------------------------
+@admin_bp.route('/api/payroll/tax-slabs', methods=['GET', 'POST'])
+@role_required('Admin', 'Payroll User')
+def handle_tax_slabs():
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    try:
+        if request.method == 'GET':
+            return jsonify(service.get_tax_slabs()), 200
+        else:
+            service.save_tax_slab(request.json)
+            return jsonify({"message": "Tax slab saved successfully"}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/tax-slabs/<int:slab_id>', methods=['DELETE'])
+@role_required('Admin', 'Payroll User')
+def delete_tax_slab(slab_id):
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    try:
+        service.delete_tax_slab(slab_id)
+        return jsonify({"message": "Tax slab deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/designation-slabs', methods=['GET', 'POST'])
+@role_required('Admin', 'Payroll User')
+def handle_designation_slabs():
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    try:
+        if request.method == 'GET':
+            return jsonify(service.get_designation_slabs()), 200
+        else:
+            service.save_designation_slab(request.json)
+            return jsonify({"message": "Designation slab saved successfully"}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/designation-slabs/<designation>', methods=['DELETE'])
+@role_required('Admin', 'Payroll User')
+def delete_designation_slab(designation):
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    try:
+        service.delete_designation_slab(designation)
+        return jsonify({"message": "Designation slab deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/employee-mandates', methods=['GET', 'POST'])
+@role_required('Admin', 'Payroll User')
+def handle_employee_mandates():
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    try:
+        if request.method == 'GET':
+            return jsonify(service.get_employee_mandates()), 200
+        else:
+            service.save_employee_mandate(request.json)
+            return jsonify({"message": "Employee mandate saved successfully"}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/api/payroll/mandates-template', methods=['GET'])
+@role_required('Admin', 'Payroll User')
+def download_mandates_template():
+    """Provides a downloadable CSV template for bulk mandates upload."""
+    csv_content = "EmployeeCode,IncomeTax,LoanEMI,SalaryAdvance,LICPremium\nKPCB-001,7000.00,0.00,6000.00,0.00\nKPCB-002,0.00,21830.00,2500.00,487.00\nKPCB-003,0.00,5553.00,2500.00,0.00\n"
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-disposition": "attachment; filename=mandates_upload_template.csv"}
+    )
+
+@admin_bp.route('/api/payroll/mandates-upload', methods=['POST'])
+@role_required('Admin', 'Payroll User')
+def upload_bulk_mandates():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files['file']
+    if not file.filename.lower().endswith(('.csv', '.xls', '.xlsx')):
+        return jsonify({"error": "Please upload an Excel or CSV file."}), 400
+        
+    repo = SqlPayrollRepository(db.session)
+    service = PayrollService(repo)
+    
+    try:
+        result = service.process_bulk_mandates(file)
+        success_count = result.get('success_count', 0)
+        return jsonify({"message": f"Successfully updated {success_count} employee mandates."}), 200
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+    except Exception as e:
+        return jsonify({"error": "Failed to process the mandates file."}), 500
+
+# ---------------------------------------------------------
+# LEAVE MASTER API ENDPOINTS
 # ---------------------------------------------------------
 @admin_bp.route('/leave-master', methods=['GET'])
 @role_required('Admin')

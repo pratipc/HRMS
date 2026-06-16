@@ -2,6 +2,8 @@
 # Location: kpcb_hrms/app/services/payroll_service.py
 
 from typing import List, Dict, Any
+import json
+import pandas as pd
 from app.repositories.interfaces import IPayrollRepository
 
 class PayrollService:
@@ -71,3 +73,85 @@ class PayrollService:
             raise ValueError("Payroll for this month is already finalized.")
             
         return self.payroll_repo.finalize_monthly_payroll(year, month, processed_by)
+
+    # --- Dynamic Payroll Slabs and Mandates ---
+    def get_tax_slabs(self) -> List[Dict[str, Any]]:
+        return self.payroll_repo.get_tax_slabs()
+        
+    def save_tax_slab(self, slab_data: Dict[str, Any]) -> None:
+        if slab_data.get('MinGross', -1) < 0:
+            raise ValueError("MinGross cannot be negative.")
+        if slab_data.get('MaxGross') is not None and slab_data.get('MaxGross') <= slab_data.get('MinGross'):
+            raise ValueError("MaxGross must be greater than MinGross.")
+        if slab_data.get('TaxAmount', -1) < 0:
+            raise ValueError("TaxAmount cannot be negative.")
+        self.payroll_repo.save_tax_slab(slab_data)
+        
+    def delete_tax_slab(self, slab_id: int) -> None:
+        self.payroll_repo.delete_tax_slab(slab_id)
+        
+    def get_designation_slabs(self) -> List[Dict[str, Any]]:
+        return self.payroll_repo.get_designation_slabs()
+        
+    def save_designation_slab(self, designation_data: Dict[str, Any]) -> None:
+        if not designation_data.get('Designation'):
+            raise ValueError("Designation cannot be empty.")
+        if designation_data.get('GSLISAmount', -1) < 0:
+            raise ValueError("GSLISAmount cannot be negative.")
+        if designation_data.get('SaturdayAllowanceAmount', -1) < 0:
+            raise ValueError("SaturdayAllowanceAmount cannot be negative.")
+        self.payroll_repo.save_designation_slab(designation_data)
+        
+    def delete_designation_slab(self, designation: str) -> None:
+        self.payroll_repo.delete_designation_slab(designation)
+        
+    def get_employee_mandates(self) -> List[Dict[str, Any]]:
+        return self.payroll_repo.get_employee_mandates()
+        
+    def save_employee_mandate(self, mandate_data: Dict[str, Any]) -> None:
+        if not mandate_data.get('EmployeeID'):
+            raise ValueError("EmployeeID is required.")
+        for field in ['IncomeTax', 'LoanEMI', 'SalaryAdvance', 'LICPremium']:
+            if mandate_data.get(field, -1) < 0:
+                raise ValueError(f"{field} cannot be negative.")
+        self.payroll_repo.save_employee_mandate(mandate_data)
+
+    def process_bulk_mandates(self, file) -> Dict[str, Any]:
+        """Parses an Excel/CSV file and processes bulk mandate updates."""
+        try:
+            filename = file.filename.lower()
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file)
+            elif filename.endswith(('.xls', '.xlsx')):
+                df = pd.read_excel(file)
+            else:
+                raise ValueError("Unsupported file format. Please upload a .CSV or .XLSX file.")
+
+            # Validate required columns
+            required_cols = ['EmployeeCode']
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns: {', '.join(missing_cols)}")
+
+            # Replace NaNs with 0 for numeric columns
+            for col in ['IncomeTax', 'LoanEMI', 'SalaryAdvance', 'LICPremium']:
+                if col in df.columns:
+                    df[col] = df[col].fillna(0)
+                else:
+                    df[col] = 0.0
+
+            # Convert to list of dicts
+            mandates = df[['EmployeeCode', 'IncomeTax', 'LoanEMI', 'SalaryAdvance', 'LICPremium']].to_dict('records')
+            
+            # Convert to JSON string for the stored procedure
+            json_data = json.dumps(mandates)
+            
+            success_count = self.payroll_repo.process_bulk_mandates(json_data)
+            
+            return {
+                "success_count": success_count,
+                "total_records": len(mandates)
+            }
+            
+        except Exception as e:
+            raise ValueError(f"Error processing file: {str(e)}")

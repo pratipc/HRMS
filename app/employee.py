@@ -56,23 +56,6 @@ def get_my_attendance():
         return jsonify(register), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-@employee_bp.route('/api/attendance/punch-in', methods=['POST'])
-@role_required('Admin', 'Employee', 'Payroll User', 'Attendance User')
-def punch_in():
-    """API for an employee to record their daily punch-in time."""
-    # We securely grab the employee_id from the session, NOT from user input!
-    employee_id = session.get('employee_id')
-    
-    repo = SqlTimeActionRepository(db.session)
-    service = TimeActionService(repo)
-    
-    try:
-        result = service.record_punch_in(employee_id)
-        return jsonify({"message": "Successfully punched in", "data": result}), 200
-    except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
-    except Exception as e:
-        return jsonify({"error": "An internal server error occurred"}), 500
 
 # ---------------------------------------------------------
 # LEAVE MANAGEMENT API ROUTES

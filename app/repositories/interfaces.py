@@ -222,3 +222,40 @@ class IPayrollRepository(ABC):
     def finalize_monthly_payroll(self, year: int, month: int, processed_by: str) -> Dict[str, Any]:
         """Locks the payroll for the specified month."""
         pass
+
+    # --- Dynamic Payroll Slabs and Mandates ---
+    @abstractmethod
+    def get_tax_slabs(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def save_tax_slab(self, slab_data: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    def delete_tax_slab(self, slab_id: int) -> None:
+        pass
+
+    @abstractmethod
+    def get_designation_slabs(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def save_designation_slab(self, designation_data: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    def delete_designation_slab(self, designation: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_employee_mandates(self) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    def save_employee_mandate(self, mandate_data: Dict[str, Any]) -> None:
+        pass
+
+    @abstractmethod
+    def process_bulk_mandates(self, json_data: str) -> int:
+        pass

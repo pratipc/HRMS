@@ -54,47 +54,25 @@
 
     <!-- Core Interactive Operations Grid -->
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Web Punch Attendance Card -->
-        <div class="glass-panel p-8 rounded-2xl border shadow-sm flex flex-col justify-between bg-white/70 hover:bg-white transition-all text-center lg:col-span-1">
-            <div>
-                <div class="inline-flex h-16 w-16 rounded-full bg-blue-50 items-center justify-center mb-4 text-blue-600 border border-blue-100 shadow-sm">
-                    <i class="ph-fill ph-fingerprint text-3xl animate-pulse"></i>
-                </div>
-                <h3 class="text-xl font-bold text-slate-800 mb-2">Biometric Punch-In</h3>
-                <p class="text-sm text-slate-500 mb-6 leading-relaxed">Punches are securely validated against KPCB door-lock schedules.</p>
-            </div>
-            
-            <div>
-                <button id="punchInBtn" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10 hover:-translate-y-0.5">
-                    Punch In
-                </button>
-                <div id="punchInMessage" class="hidden mt-4 p-3 text-sm font-semibold rounded-lg text-center"></div>
-            </div>
+    <div class="flex flex-col space-y-4">
+        <div class="flex justify-between items-center px-2">
+            <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i class="ph-bold ph-calendar-star text-indigo-500"></i> Active Leave Balances
+            </h3>
+            <button onclick="openLeaveModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                <i class="ph-bold ph-calendar-plus"></i> Apply Leave
+            </button>
         </div>
 
-        <!-- Leave Balance Overview Progress Cards (Dynamic Container) -->
-        <div class="lg:col-span-2 flex flex-col space-y-4">
-            <div class="flex justify-between items-center px-2">
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i class="ph-bold ph-calendar-star text-indigo-500"></i> Active Leave Balances
-                </h3>
-                <button onclick="openLeaveModal()" class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
-                    <i class="ph-bold ph-calendar-plus"></i> Apply Leave
-                </button>
-            </div>
+        <!-- Loader State -->
+        <div id="balancesLoader" class="glass-panel p-12 rounded-2xl border shadow-sm flex flex-col items-center justify-center text-slate-500 bg-white">
+            <i class="ph-bold ph-spinner animate-spin text-3xl mb-2 text-indigo-500"></i>
+            <p class="text-xs font-semibold">Updating ledger balances...</p>
+        </div>
 
-            <!-- Loader State -->
-            <div id="balancesLoader" class="glass-panel p-12 rounded-2xl border shadow-sm flex flex-col items-center justify-center text-slate-500 bg-white">
-                <i class="ph-bold ph-spinner animate-spin text-3xl mb-2 text-indigo-500"></i>
-                <p class="text-xs font-semibold">Updating ledger balances...</p>
-            </div>
-
-            <!-- Dynamic Balance Grid -->
-            <div id="balancesContainer" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <!-- Cards injected here via JS -->
-            </div>
+        <!-- Dynamic Balance Grid -->
+        <div id="balancesContainer" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Cards injected here via JS -->
         </div>
     </div>
 </div>
@@ -266,47 +244,6 @@
             select.innerHTML = `<option value="">Network error.</option>`;
         }
     }
-
-    // --- Web Punch In Logic ---
-    document.getElementById('punchInBtn').addEventListener('click', async function() {
-        const btn = this;
-        const msgBox = document.getElementById('punchInMessage');
-        
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Recording...';
-        msgBox.classList.add('hidden');
-        msgBox.className = 'hidden mt-4 p-3 text-sm font-semibold rounded-lg'; 
-        
-        try {
-            const response = await fetch('/employee/api/attendance/punch-in', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const data = await response.json();
-            
-            if (response.ok) {
-                btn.innerHTML = '<i class="ph-bold ph-check-circle"></i> Punched In';
-                btn.classList.replace('bg-blue-600', 'bg-emerald-500');
-                btn.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-600');
-                
-                msgBox.textContent = `Success! Punched in at ${data.data.PunchTime}`;
-                msgBox.classList.add('bg-emerald-50', 'text-emerald-700', 'border', 'border-emerald-200');
-                msgBox.classList.remove('hidden');
-            } else {
-                btn.disabled = false;
-                btn.innerHTML = 'Punch In';
-                msgBox.textContent = data.error || 'Failed to punch in.';
-                msgBox.classList.add('bg-amber-50', 'text-amber-700', 'border', 'border-amber-200');
-                msgBox.classList.remove('hidden');
-            }
-        } catch (error) {
-            btn.disabled = false;
-            btn.innerHTML = 'Punch In';
-            msgBox.textContent = 'Server connection failed.';
-            msgBox.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
-            msgBox.classList.remove('hidden');
-        }
-    });
 
     // --- Leave Application Modal Controls ---
     const leaveModal = document.getElementById('leaveModal');

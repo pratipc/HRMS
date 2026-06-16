@@ -49,3 +49,101 @@ class SqlPayrollRepository(IPayrollRepository):
         result = self.db_session.execute(sql, {"Year": year, "Month": month, "ProcessedBy": processed_by}).mappings().fetchone()
         self.db_session.commit()
         return dict(result) if result else {"Status": "Failed"}
+
+    # --- Dynamic Payroll Slabs and Mandates ---
+    def get_tax_slabs(self) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetTaxSlabs")
+        result = self.db_session.execute(sql).mappings().all()
+        return [dict(row) for row in result]
+
+    def save_tax_slab(self, slab_data: Dict[str, Any]) -> None:
+        sql = text("""
+            EXEC sp_SaveTaxSlab 
+                @SlabID = :SlabID, 
+                @TaxType = :TaxType, 
+                @MinGross = :MinGross, 
+                @MaxGross = :MaxGross, 
+                @TaxAmount = :TaxAmount
+        """)
+        self.db_session.execute(sql, {
+            "SlabID": slab_data.get('SlabID'),
+            "TaxType": slab_data.get('TaxType', 'Professional Tax'),
+            "MinGross": slab_data.get('MinGross'),
+            "MaxGross": slab_data.get('MaxGross'),
+            "TaxAmount": slab_data.get('TaxAmount')
+        })
+        self.db_session.commit()
+
+    def delete_tax_slab(self, slab_id: int) -> None:
+        sql = text("EXEC sp_DeleteTaxSlab @SlabID = :SlabID")
+        self.db_session.execute(sql, {"SlabID": slab_id})
+        self.db_session.commit()
+
+    def get_designation_slabs(self) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetDesignationSlabs")
+        result = self.db_session.execute(sql).mappings().all()
+        return [dict(row) for row in result]
+
+    def save_designation_slab(self, designation_data: Dict[str, Any]) -> None:
+        sql = text("""
+            EXEC sp_SaveDesignationSlab 
+                @Designation = :Designation, 
+                @GSLISAmount = :GSLISAmount, 
+                @SaturdayAllowanceAmount = :SaturdayAllowanceAmount
+        """)
+        self.db_session.execute(sql, {
+            "Designation": designation_data.get('Designation'),
+            "GSLISAmount": designation_data.get('GSLISAmount'),
+            "SaturdayAllowanceAmount": designation_data.get('SaturdayAllowanceAmount')
+        })
+        self.db_session.commit()
+
+    def delete_designation_slab(self, designation: str) -> None:
+        sql = text("EXEC sp_DeleteDesignationSlab @Designation = :Designation")
+        self.db_session.execute(sql, {"Designation": designation})
+        self.db_session.commit()
+
+    def get_employee_mandates(self) -> List[Dict[str, Any]]:
+        sql = text("EXEC sp_GetEmployeeMandates")
+        result = self.db_session.execute(sql).mappings().all()
+
+        # Format datetimes
+        formatted_result = []
+        for row in result:
+            row_dict = dict(row)
+            if row_dict.get('LastUpdated'):
+                row_dict['LastUpdated'] = str(row_dict['LastUpdated'])
+            formatted_result.append(row_dict)
+
+        return formatted_result
+
+    def save_employee_mandate(self, mandate_data: Dict[str, Any]) -> None:
+        sql = text("""
+            EXEC sp_SaveEmployeeMandate 
+                @EmployeeID = :EmployeeID, 
+                @IncomeTax = :IncomeTax, 
+                @LoanEMI = :LoanEMI, 
+                @SalaryAdvance = :SalaryAdvance, 
+                @LICPremium = :LICPremium
+        """)
+        self.db_session.execute(sql, {
+            "EmployeeID": mandate_data.get('EmployeeID'),
+            "IncomeTax": mandate_data.get('IncomeTax', 0.0),
+            "LoanEMI": mandate_data.get('LoanEMI', 0.0),
+            "SalaryAdvance": mandate_data.get('SalaryAdvance', 0.0),
+            "LICPremium": mandate_data.get('LICPremium', 0.0)
+        })
+        self.db_session.commit()
+
+    def process_bulk_mandates(self, json_data: str) -> int:
+        sql = text("EXEC sp_UpdateMandatesBulk @JsonData = :JsonData")
+        result = self.db_session.execute(sql, {"JsonData": json_data})
+        
+        success_count = 0
+        if result.returns_rows:
+            row = result.mappings().fetchone()
+            if row and row.get('SuccessCount'):
+                success_count = row['SuccessCount']
+                
+        self.db_session.commit()
+        return success_count

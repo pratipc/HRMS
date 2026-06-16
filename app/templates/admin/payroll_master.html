@@ -13,15 +13,21 @@
             <p class="text-sm text-slate-500">Configure individual employee base pay and global allowance rates.</p>
         </div>
         
-        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto shrink-0">
-            <button onclick="setTab('salaries')" id="tabBtnSalaries" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2">
-                <i class="ph-bold ph-users"></i> Employee Ledger
+        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 w-full sm:w-auto shrink-0 overflow-x-auto">
+            <button onclick="setTab('salaries')" id="tabBtnSalaries" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="ph-bold ph-users"></i> Ledger
             </button>
-            <button onclick="setTab('config')" id="tabBtnConfig" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
-                <i class="ph-bold ph-sliders"></i> Monthly Allowances
+            <button onclick="setTab('config')" id="tabBtnConfig" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="ph-bold ph-sliders"></i> Monthly Allowance Rates
             </button>
-            <button onclick="setTab('saturday')" id="tabBtnSaturday" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2">
-                <i class="ph-bold ph-calendar-check"></i> Saturday Allowance
+            <button onclick="setTab('saturday')" id="tabBtnSaturday" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="ph-bold ph-calendar-check"></i> Slabs
+            </button>
+            <button onclick="setTab('taxslabs')" id="tabBtnTaxSlabs" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="ph-bold ph-receipt"></i> Taxes
+            </button>
+            <button onclick="setTab('mandates')" id="tabBtnMandates" class="flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <i class="ph-bold ph-user-list"></i> Mandates
             </button>
         </div>
     </div>
@@ -68,15 +74,12 @@
                     <table class="w-full text-left border-collapse text-xs">
                         <thead class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500">
                             <tr>
-                                <th class="px-5 py-4 font-bold text-left rounded-tl-xl">Employee</th>
+                                <th class="px-5 py-4 font-bold text-left rounded-tl-xl">Employee Details</th>
                                 <th class="px-4 py-4 font-bold text-right">Basic Pay</th>
-                                <th class="px-4 py-4 font-bold text-right">DA</th>
-                                <th class="px-4 py-4 font-bold text-right">HRA</th>
-                                <th class="px-4 py-4 font-bold text-right">MA</th>
-                                <th class="px-4 py-4 font-bold text-right text-indigo-500">Sat. Allowance</th>
-                                <th class="px-4 py-4 font-bold text-right text-amber-500">Cash Duty</th>
-                                <th class="px-5 py-4 font-bold text-right text-emerald-600">Final Net Pay</th>
-                                <th class="px-4 py-4 text-center rounded-tr-xl">Action</th>
+                                <th class="px-4 py-4 font-bold text-right text-emerald-600">Gross Earnings</th>
+                                <th class="px-4 py-4 font-bold text-right text-rose-600">Total Deductions</th>
+                                <th class="px-5 py-4 font-bold text-right text-indigo-700">Net Pay</th>
+                                <th class="px-4 py-4 text-center rounded-tr-xl">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="salariesTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
@@ -195,6 +198,90 @@
             </div>
         </div>
     </div>
+
+    <!-- TAB 4: Tax Slabs Configuration -->
+    <div id="tabContentTaxSlabs" class="hidden flex flex-col items-center">
+        <div class="glass-panel p-8 rounded-2xl shadow-sm border border-slate-200 bg-white w-full max-w-4xl">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-rose-500 to-red-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
+                        <i class="ph-fill ph-receipt text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Professional Tax Slabs</h3>
+                        <p class="text-xs font-semibold text-slate-500">Configure global tax deductions based on gross salary ranges.</p>
+                    </div>
+                </div>
+                <button onclick="openTaxSlabModal()" class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-plus"></i> Add Tax Slab
+                </button>
+            </div>
+
+            <div id="taxSlabMessage" class="hidden mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border"></div>
+
+            <div class="overflow-hidden border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 font-bold">Tax Type</th>
+                            <th class="px-6 py-4 font-bold text-right">Min Gross (₹)</th>
+                            <th class="px-6 py-4 font-bold text-right">Max Gross (₹)</th>
+                            <th class="px-6 py-4 font-bold text-right text-rose-600">Tax Amount (₹)</th>
+                            <th class="px-6 py-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taxSlabsTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 5: Individual Mandates Configuration -->
+    <div id="tabContentMandates" class="hidden flex flex-col space-y-4">
+        <div class="glass-panel p-6 rounded-2xl shadow-sm border border-slate-200 bg-white w-full">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b border-slate-100 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-xl bg-gradient-to-tr from-purple-500 to-fuchsia-500 text-white flex items-center justify-center shadow-lg shadow-purple-500/20">
+                        <i class="ph-fill ph-user-list text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Staff Mandates & Deductions</h3>
+                        <p class="text-xs font-semibold text-slate-500">Manage individual deductions (IT, Loans, Advances, LIC) overriding base policies.</p>
+                    </div>
+                </div>
+                <button onclick="openUploadMandatesModal()" class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-md hover:bg-emerald-700 transition-all flex items-center gap-2">
+                    <i class="ph-bold ph-file-arrow-up"></i> Bulk Import (Excel)
+                </button>
+            </div>
+
+            <div class="relative w-full md:w-80 mb-4">
+                <i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" id="mandateSearch" oninput="filterMandates()" placeholder="Search employee..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm">
+            </div>
+
+            <div id="mandateMessage" class="hidden mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border"></div>
+
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                        <tr>
+                            <th class="px-6 py-4 font-bold">Employee</th>
+                            <th class="px-6 py-4 font-bold text-right text-rose-500">Income Tax</th>
+                            <th class="px-6 py-4 font-bold text-right text-amber-500">Loan EMI</th>
+                            <th class="px-6 py-4 font-bold text-right text-blue-500">Salary Adv.</th>
+                            <th class="px-6 py-4 font-bold text-right text-indigo-500">LIC Premium</th>
+                            <th class="px-6 py-4 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mandatesTableBody" class="divide-y divide-slate-100 font-medium text-slate-700 text-sm">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Finalize Confirmation Modal -->
@@ -285,6 +372,100 @@
     </div>
 </div>
 
+<!-- Edit Mandate Modal -->
+<div id="editMandateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-user-list text-purple-600"></i> Adjust Mandates
+            </h3>
+            <button onclick="closeMandateModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <form id="mandateForm" class="p-6">
+            <input type="hidden" id="editMandateEmpId">
+            <div id="mandateModalError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Employee Name</label>
+                    <input type="text" id="editMandateEmpName" disabled class="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 cursor-not-allowed">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-rose-600 uppercase tracking-wide mb-1">Income Tax (₹)</label>
+                        <input type="number" step="0.01" min="0" id="editMandateIT" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-amber-600 uppercase tracking-wide mb-1">Loan EMI (₹)</label>
+                        <input type="number" step="0.01" min="0" id="editMandateLoan" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-600 uppercase tracking-wide mb-1">Salary Adv. (₹)</label>
+                        <input type="number" step="0.01" min="0" id="editMandateAdv" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-600 uppercase tracking-wide mb-1">LIC Premium (₹)</label>
+                        <input type="number" step="0.01" min="0" id="editMandateLIC" required class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-700">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="closeMandateModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button type="submit" id="btnSaveMandateModal" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-md">Update Mandates</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk Upload Mandates Modal -->
+<div id="uploadMandatesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="ph-fill ph-file-arrow-up text-emerald-600"></i> Bulk Import Mandates
+            </h3>
+            <button onclick="closeUploadMandatesModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+                <i class="ph-bold ph-x text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div id="uploadMandatesError" class="hidden mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100"></div>
+            
+            <div class="mb-6 bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <h4 class="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-1">
+                    <i class="ph-bold ph-info"></i> Instructions
+                </h4>
+                <p class="text-xs text-indigo-700 leading-relaxed">
+                    Upload a CSV/Excel file with columns: <strong>EmployeeCode, IncomeTax, LoanEMI, SalaryAdvance, LICPremium</strong>. 
+                    The system will match employees by their code and update their mandates.
+                </p>
+                <div class="mt-3">
+                    <a href="/admin/api/payroll/mandates-template" class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                        <i class="ph-bold ph-download-simple"></i> Download Template (.CSV)
+                    </a>
+                </div>
+            </div>
+
+            <form id="uploadMandatesForm" class="space-y-6">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Select File (.csv, .xlsx) <span class="text-red-500">*</span></label>
+                    <input type="file" id="mandatesFile" accept=".csv, .xlsx, .xls" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
+                </div>
+                
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeUploadMandatesModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                    <button type="submit" id="btnConfirmUploadMandates" class="px-5 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md">Start Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
     let activeTab = 'salaries';
     let fullLedgerData = [];
@@ -302,31 +483,47 @@
         const tabSalaries = document.getElementById('tabContentSalaries');
         const tabConfig = document.getElementById('tabContentConfig');
         const tabSaturday = document.getElementById('tabContentSaturday');
+        const tabTaxSlabs = document.getElementById('tabContentTaxSlabs');
+        const tabMandates = document.getElementById('tabContentMandates');
         
         const btnSalaries = document.getElementById('tabBtnSalaries');
         const btnConfig = document.getElementById('tabBtnConfig');
         const btnSaturday = document.getElementById('tabBtnSaturday');
+        const btnTaxSlabs = document.getElementById('tabBtnTaxSlabs');
+        const btnMandates = document.getElementById('tabBtnMandates');
 
         tabSalaries.classList.add('hidden');
         tabConfig.classList.add('hidden');
         tabSaturday.classList.add('hidden');
+        tabTaxSlabs.classList.add('hidden');
+        tabMandates.classList.add('hidden');
         
-        btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
-        btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
-        btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2";
+        btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+        btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+        btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+        btnTaxSlabs.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+        btnMandates.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-all flex items-center justify-center gap-2 whitespace-nowrap";
 
         if (tab === 'salaries') {
             tabSalaries.classList.remove('hidden');
-            btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            btnSalaries.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap";
             checkPayrollStatus();
         } else if (tab === 'config') {
             tabConfig.classList.remove('hidden');
-            btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            btnConfig.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap";
             loadConfig();
         } else if (tab === 'saturday') {
             tabSaturday.classList.remove('hidden');
-            btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2";
+            btnSaturday.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap";
             loadSaturdayRates();
+        } else if (tab === 'taxslabs') {
+            tabTaxSlabs.classList.remove('hidden');
+            btnTaxSlabs.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+            loadTaxSlabs();
+        } else if (tab === 'mandates') {
+            tabMandates.classList.remove('hidden');
+            btnMandates.className = "flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap";
+            loadMandates();
         }
     }
 
@@ -440,51 +637,92 @@
     function renderSalaries(data) {
         const tbody = document.getElementById('salariesTableBody');
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-slate-500">No records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No records found.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = data.map(emp => `
-            <tr class="hover:bg-slate-50/50 transition-colors">
+        tbody.innerHTML = data.map((emp, index) => `
+            <tr class="hover:bg-slate-50/50 transition-colors border-b border-slate-100">
                 <td class="px-5 py-4 whitespace-nowrap">
                     <div class="flex flex-col min-w-0">
                         <span class="font-bold text-slate-800 text-sm">${emp.EmployeeName}</span>
-                        <span class="text-[10px] font-mono font-bold text-slate-400">${emp.EmployeeCode}</span>
+                        <span class="text-[10px] font-mono font-bold text-slate-400">${emp.EmployeeCode} &bull; ${emp.Designation}</span>
                     </div>
                 </td>
-                
                 <td class="px-4 py-4 text-right font-bold text-slate-700">${formatter.format(emp.BasicPay || 0)}</td>
-                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.DA || 0)}</td>
-                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.HRA || 0)}</td>
-                <td class="px-4 py-4 text-right font-semibold text-slate-600">${formatter.format(emp.MA || 0)}</td>
-                
-                <td class="px-4 py-4 text-right whitespace-nowrap">
-                    <div class="flex flex-col items-end">
-                        <span class="font-bold text-indigo-600">${formatter.format(emp.SaturdayAllowance || 0)}</span>
-                        <span class="text-[9px] text-indigo-400 font-medium">${emp.EligibleSaturdays || 0} Days</span>
-                    </div>
-                </td>
-
-                <td class="px-4 py-4 text-right whitespace-nowrap">
-                    <div class="flex flex-col items-end">
-                        <span class="font-bold text-amber-600">${formatter.format(emp.CashCounterAllowance || 0)}</span>
-                        <span class="text-[9px] text-amber-500 font-medium">${emp.CashCounterDays || 0} Days</span>
-                    </div>
-                </td>
-                
+                <td class="px-4 py-4 text-right font-bold text-emerald-600">${formatter.format(emp.TotalGross || 0)}</td>
+                <td class="px-4 py-4 text-right font-bold text-rose-600">${formatter.format(emp.TotalDeductions || 0)}</td>
                 <td class="px-5 py-4 text-right whitespace-nowrap">
-                    <span class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold text-sm tracking-tight border border-emerald-200">
+                    <span class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-800 font-black text-sm tracking-tight border border-indigo-200">
                         ${formatter.format(emp.FinalNetPay || 0)}
                     </span>
                 </td>
-                <td class="px-4 py-4 text-center">
-                    <button onclick="openBasicModal(${emp.EmployeeID}, '${emp.EmployeeName.replace(/'/g, "\\'")}', ${emp.BasicPay})" 
-                            class="px-3 py-1.5 bg-white border border-slate-200 text-indigo-600 text-xs font-bold rounded hover:bg-indigo-50 transition-colors shadow-sm">
-                        Edit
-                    </button>
+                <td class="px-4 py-4 text-center whitespace-nowrap">
+                    <div class="flex items-center justify-center gap-2">
+                        <button onclick="toggleBreakdown(${index})" class="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded hover:bg-slate-50 transition-colors shadow-sm">
+                            <i class="ph-bold ph-caret-down" id="icon-breakdown-${index}"></i> Details
+                        </button>
+                        <button onclick="openBasicModal(${emp.EmployeeID}, '${emp.EmployeeName.replace(/'/g, "\\'")}', ${emp.BasicPay})" 
+                                class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="Edit Basic Pay">
+                            <i class="ph-bold ph-pencil-simple text-lg"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr id="breakdown-${index}" class="hidden bg-slate-50/50">
+                <td colspan="6" class="px-6 py-6 border-b border-slate-200">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                        <!-- Earnings -->
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                            <h4 class="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2 flex items-center gap-2"><i class="ph-bold ph-trend-up"></i> Earnings</h4>
+                            <div class="space-y-2 text-sm font-medium text-slate-600">
+                                <div class="flex justify-between"><span class="text-slate-500">Basic Pay</span> <span class="font-bold text-slate-800">${formatter.format(emp.BasicPay || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Dearness Allowance (DA)</span> <span class="font-bold text-slate-800">${formatter.format(emp.DA || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">House Rent Allowance (HRA)</span> <span class="font-bold text-slate-800">${formatter.format(emp.HRA || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Medical Allowance (MA)</span> <span class="font-bold text-slate-800">${formatter.format(emp.MA || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Saturday Allowance <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-400 ml-1">${emp.EligibleSaturdays || 0} Days</span></span> <span class="font-bold text-slate-800">${formatter.format(emp.SaturdayAllowance || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Cash Counter Duty <span class="text-[10px] bg-slate-100 px-1 rounded text-slate-400 ml-1">${emp.CashCounterDays || 0} Days</span></span> <span class="font-bold text-slate-800">${formatter.format(emp.CashCounterAllowance || 0)}</span></div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Pay</span>
+                                <span class="text-base font-black text-emerald-600">${formatter.format(emp.TotalGross || 0)}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Deductions -->
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                            <h4 class="text-xs font-black text-rose-600 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2 flex items-center gap-2"><i class="ph-bold ph-trend-down"></i> Deductions & Mandates</h4>
+                            <div class="space-y-2 text-sm font-medium text-slate-600">
+                                <div class="flex justify-between"><span class="text-slate-500">Provident Fund (PF)</span> <span class="font-bold text-slate-800">${formatter.format(emp.PF || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Professional Tax</span> <span class="font-bold text-slate-800">${formatter.format(emp.ProfessionalTax || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Income Tax (IT)</span> <span class="font-bold text-slate-800">${formatter.format(emp.IT || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Education Cess (E/Cess)</span> <span class="font-bold text-slate-800">${formatter.format(emp.ECess || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">GSLIS</span> <span class="font-bold text-slate-800">${formatter.format(emp.GSLIS || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Loan EMI</span> <span class="font-bold text-slate-800">${formatter.format(emp.LoanEMI || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Salary Advance</span> <span class="font-bold text-slate-800">${formatter.format(emp.SalaryAdvance || 0)}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">LIC Premium</span> <span class="font-bold text-slate-800">${formatter.format(emp.LICPremium || 0)}</span></div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Deductions</span>
+                                <span class="text-base font-black text-rose-600">${formatter.format(emp.TotalDeductions || 0)}</span>
+                            </div>
+                        </div>
+                    </div>
                 </td>
             </tr>
         `).join('');
+    }
+
+    function toggleBreakdown(index) {
+        const el = document.getElementById(`breakdown-${index}`);
+        const icon = document.getElementById(`icon-breakdown-${index}`);
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            icon.classList.replace('ph-caret-down', 'ph-caret-up');
+        } else {
+            el.classList.add('hidden');
+            icon.classList.replace('ph-caret-up', 'ph-caret-down');
+        }
     }
 
     // --- FINALIZATION LOGIC ---
@@ -704,6 +942,242 @@
             err.textContent = 'Server error.'; err.classList.remove('hidden');
         } finally {
             btn.disabled = false; btn.innerHTML = 'Update Rate';
+        }
+    });
+    // --- TAB 4: TAX SLABS LOGIC ---
+    let fullTaxSlabs = [];
+    async function loadTaxSlabs() {
+        const tbody = document.getElementById('taxSlabsTableBody');
+        tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500"><i class="ph-bold ph-spinner animate-spin mr-2"></i>Loading slabs...</td></tr>`;
+        try {
+            const res = await fetch("/admin/api/payroll/tax-slabs");
+            fullTaxSlabs = await res.json();
+            if (fullTaxSlabs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No tax slabs defined.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = fullTaxSlabs.map(slab => `
+                <tr class="hover:bg-slate-50/50 transition-colors">
+                    <td class="px-6 py-4 font-bold text-slate-800">${slab.TaxType}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-slate-600">${formatter.format(slab.MinGross)}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-slate-600">${slab.MaxGross ? formatter.format(slab.MaxGross) : 'Above'}</td>
+                    <td class="px-6 py-4 text-right font-mono font-bold text-rose-600 text-base">${formatter.format(slab.TaxAmount)}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="openTaxSlabModal(${slab.SlabID}, '${slab.TaxType}', ${slab.MinGross}, ${slab.MaxGross || ''}, ${slab.TaxAmount})" 
+                                class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit Slab">
+                            <i class="ph-bold ph-pencil-simple text-lg"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch(e) { 
+            tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-red-500">Failed to load slabs.</td></tr>`;
+        }
+    }
+
+    function openTaxSlabModal(id = null, type = 'Professional Tax', min = '', max = '', amount = '') {
+        // We will prompt via alert for simplicity or create a modal. Since we don't have a modal defined for tax, let's use a quick prompt based approach or rely on the user to build one.
+        // For production, a dedicated modal like editBasicModal is better. 
+        // We will dynamically create one if needed or just use JS prompt.
+        const minGross = prompt("Enter Minimum Gross Salary (₹):", min);
+        if(minGross === null) return;
+        const maxGross = prompt("Enter Maximum Gross Salary (₹) [Leave blank for infinity]:", max);
+        if(maxGross === null) return;
+        const taxAmount = prompt("Enter Tax Deduction Amount (₹):", amount);
+        if(taxAmount === null) return;
+
+        saveTaxSlab({
+            SlabID: id,
+            TaxType: type,
+            MinGross: parseFloat(minGross),
+            MaxGross: maxGross ? parseFloat(maxGross) : null,
+            TaxAmount: parseFloat(taxAmount)
+        });
+    }
+
+    async function saveTaxSlab(data) {
+        try {
+            const res = await fetch("/admin/api/payroll/tax-slabs", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                loadTaxSlabs();
+            } else {
+                const err = await res.json();
+                alert(err.error || "Failed to save.");
+            }
+        } catch(e) {
+            alert("Server error.");
+        }
+    }
+
+    // --- TAB 5: MANDATES LOGIC ---
+    let fullMandates = [];
+    async function loadMandates() {
+        const tbody = document.getElementById('mandatesTableBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500"><i class="ph-bold ph-spinner animate-spin mr-2"></i>Loading mandates...</td></tr>`;
+        try {
+            const res = await fetch("/admin/api/payroll/employee-mandates");
+            fullMandates = await res.json();
+            renderMandates(fullMandates);
+        } catch(e) { 
+            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500">Failed to load mandates.</td></tr>`;
+        }
+    }
+
+    function filterMandates() {
+        const term = document.getElementById('mandateSearch').value.toLowerCase();
+        const filtered = fullMandates.filter(m => 
+            (m.FirstName || '').toLowerCase().includes(term) ||
+            (m.LastName || '').toLowerCase().includes(term) ||
+            (m.EmployeeCode || '').toLowerCase().includes(term)
+        );
+        renderMandates(filtered);
+    }
+
+    function renderMandates(data) {
+        const tbody = document.getElementById('mandatesTableBody');
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No mandates found.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.map(m => `
+            <tr class="hover:bg-slate-50/50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex flex-col min-w-0">
+                        <span class="font-bold text-slate-800 text-sm">${m.FirstName} ${m.LastName}</span>
+                        <span class="text-[10px] font-mono font-bold text-slate-400">${m.EmployeeCode}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right font-mono font-bold text-rose-600">${formatter.format(m.IncomeTax)}</td>
+                <td class="px-6 py-4 text-right font-mono font-bold text-amber-600">${formatter.format(m.LoanEMI)}</td>
+                <td class="px-6 py-4 text-right font-mono font-bold text-blue-600">${formatter.format(m.SalaryAdvance)}</td>
+                <td class="px-6 py-4 text-right font-mono font-bold text-indigo-600">${formatter.format(m.LICPremium)}</td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="editMandate(${m.EmployeeID}, '${(m.FirstName + ' ' + m.LastName).replace(/'/g, "\\'")}', ${m.IncomeTax}, ${m.LoanEMI}, ${m.SalaryAdvance}, ${m.LICPremium})" 
+                            class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit Mandates">
+                        <i class="ph-bold ph-pencil-simple text-lg"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function editMandate(id, name, it, loan, adv, lic) {
+        document.getElementById('editMandateEmpId').value = id;
+        document.getElementById('editMandateEmpName').value = name;
+        document.getElementById('editMandateIT').value = it;
+        document.getElementById('editMandateLoan').value = loan;
+        document.getElementById('editMandateAdv').value = adv;
+        document.getElementById('editMandateLIC').value = lic;
+        
+        const modal = document.getElementById('editMandateModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+
+    function closeMandateModal() {
+        const modal = document.getElementById('editMandateModal');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        document.getElementById('mandateModalError').classList.add('hidden');
+    }
+
+    document.getElementById('mandateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveMandateModal');
+        const err = document.getElementById('mandateModalError');
+        const id = document.getElementById('editMandateEmpId').value;
+        const it = document.getElementById('editMandateIT').value;
+        const loan = document.getElementById('editMandateLoan').value;
+        const adv = document.getElementById('editMandateAdv').value;
+        const lic = document.getElementById('editMandateLIC').value;
+
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Saving...';
+        err.classList.add('hidden');
+
+        try {
+            const res = await fetch("/admin/api/payroll/employee-mandates", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    EmployeeID: parseInt(id),
+                    IncomeTax: parseFloat(it),
+                    LoanEMI: parseFloat(loan),
+                    SalaryAdvance: parseFloat(adv),
+                    LICPremium: parseFloat(lic)
+                })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                closeMandateModal();
+                const msg = document.getElementById('mandateMessage');
+                msg.textContent = data.message || "Mandates updated successfully.";
+                msg.className = 'mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border bg-emerald-50 text-emerald-700 border-emerald-200';
+                msg.classList.remove('hidden');
+                loadMandates();
+                setTimeout(() => msg.classList.add('hidden'), 3000);
+            } else {
+                err.textContent = data.error || "Failed to save.";
+                err.classList.remove('hidden');
+            }
+        } catch(e) {
+            err.textContent = 'Server error.'; err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false; btn.innerHTML = 'Update Mandates';
+        }
+    });
+
+    // --- BULK UPLOAD MANDATES LOGIC ---
+    function openUploadMandatesModal() {
+        const modal = document.getElementById('uploadMandatesModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+
+    function closeUploadMandatesModal() {
+        const modal = document.getElementById('uploadMandatesModal');
+        modal.classList.add('hidden'); modal.classList.remove('flex');
+        document.getElementById('uploadMandatesError').classList.add('hidden');
+        document.getElementById('uploadMandatesForm').reset();
+    }
+
+    document.getElementById('uploadMandatesForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnConfirmUploadMandates');
+        const err = document.getElementById('uploadMandatesError');
+        const file = document.getElementById('mandatesFile').files[0];
+
+        btn.disabled = true; btn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Importing...';
+        err.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch("/admin/api/payroll/mandates-upload", {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                closeUploadMandatesModal();
+                const msg = document.getElementById('mandateMessage');
+                msg.textContent = data.message;
+                msg.className = 'mb-6 px-4 py-3 rounded-xl text-sm font-semibold text-center border bg-emerald-50 text-emerald-700 border-emerald-200';
+                msg.classList.remove('hidden');
+                loadMandates();
+                setTimeout(() => msg.classList.add('hidden'), 5000);
+            } else {
+                err.textContent = data.error || 'Import failed.';
+                err.classList.remove('hidden');
+            }
+        } catch (error) {
+            err.textContent = 'Server connection failed.';
+            err.classList.remove('hidden');
+        } finally {
+            btn.disabled = false; btn.innerHTML = 'Start Import';
         }
     });
 </script>

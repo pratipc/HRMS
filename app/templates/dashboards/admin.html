@@ -64,26 +64,7 @@
             </div>
         </a>
 
-        <!-- Metric 2: Today's Attendance -->
-        <a href="/admin/attendance-master" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white">
-            <div class="flex justify-between items-start mb-4">
-                <div class="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors shadow-sm">
-                    <i class="ph-bold ph-fingerprint text-2xl"></i>
-                </div>
-                <span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
-                    Today
-                </span>
-            </div>
-            <div>
-                <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Punched In</h3>
-                <div class="flex items-baseline gap-2">
-                    <p class="text-3xl font-black text-slate-800 tracking-tight">{{ metrics.TodayPresent }}</p>
-                    <p class="text-sm font-semibold text-slate-500">/ {{ metrics.TotalEmployees }}</p>
-                </div>
-            </div>
-        </a>
-
-        <!-- Metric 3: Pending Leaves -->
+        <!-- Metric 2: Pending Leaves -->
         <a href="/admin/leave-approvals" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white relative overflow-hidden">
             <div class="flex justify-between items-start mb-4 relative z-10">
                 <div class="h-12 w-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors shadow-sm relative">
@@ -106,7 +87,7 @@
             </div>
         </a>
 
-        <!-- Metric 4: Total Branches -->
+        <!-- Metric 3: Total Branches -->
         <a href="/admin/branches" class="glass-panel p-6 rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group cursor-pointer bg-white/60 hover:bg-white">
             <div class="flex justify-between items-start mb-4">
                 <div class="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">

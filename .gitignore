@@ -3,6 +3,7 @@ venv/
 env/
 ENV/
 .env/
+SALARY.xlsx
 
 # Python caching and compiled files
 __pycache__/
